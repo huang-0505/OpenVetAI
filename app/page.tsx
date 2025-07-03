@@ -82,34 +82,70 @@ export default function DataIngestionPortal() {
   // Add after existing state declarations
   const [qualityFilter, setQualityFilter] = useState<string>("all")
 
-  // Quality score calculation function (same as in DataQualityMetrics)
+  // Quality score calculation function (improved and more realistic)
   const calculateQualityScore = (content: string, extractedData: any, labels: string[]): number => {
     let score = 0
 
-    // Content length score (0-30 points)
+    // Content length score (0-25 points) - more lenient
     const contentLength = content.length
-    if (contentLength > 2000) score += 30
-    else if (contentLength > 1000) score += 20
-    else if (contentLength > 500) score += 15
+    if (contentLength > 1500) score += 25
+    else if (contentLength > 800) score += 20
+    else if (contentLength > 400) score += 15
     else if (contentLength > 200) score += 10
     else score += 5
 
-    // Extracted data quality (0-30 points)
-    if (extractedData.title && extractedData.title.length > 10) score += 10
-    if (extractedData.summary && extractedData.summary.length > 50) score += 10
-    if (extractedData.keyPoints && extractedData.keyPoints.length >= 3) score += 10
+    // Extracted data quality (0-25 points) - check for meaningful content
+    if (extractedData.title && extractedData.title.length > 20) score += 8
+    else if (extractedData.title && extractedData.title.length > 10) score += 5
 
-    // Labels score (0-20 points)
+    if (extractedData.summary && extractedData.summary.length > 100) score += 8
+    else if (extractedData.summary && extractedData.summary.length > 50) score += 5
+
+    if (extractedData.keyPoints && extractedData.keyPoints.length >= 4) score += 9
+    else if (extractedData.keyPoints && extractedData.keyPoints.length >= 2) score += 6
+    else if (extractedData.keyPoints && extractedData.keyPoints.length >= 1) score += 3
+
+    // Labels score (0-20 points) - more forgiving for new documents
     if (labels.length >= 3) score += 20
     else if (labels.length >= 2) score += 15
     else if (labels.length >= 1) score += 10
-    else score += 0
+    else score += 5 // Give some points even without labels
 
-    // Veterinary relevance (0-20 points)
-    const vetTerms = ["veterinary", "animal", "clinical", "diagnosis", "treatment", "therapy", "pathology"]
+    // Veterinary relevance (0-30 points) - enhanced detection
+    const vetTerms = [
+      "veterinary",
+      "animal",
+      "clinical",
+      "diagnosis",
+      "treatment",
+      "therapy",
+      "pathology",
+      "surgery",
+      "medicine",
+      "patient",
+      "canine",
+      "feline",
+      "equine",
+      "bovine",
+      "small animal",
+      "large animal",
+      "medical",
+      "health",
+      "disease",
+      "infection",
+      "medication",
+      "procedure",
+      "examination",
+    ]
     const lowerContent = content.toLowerCase()
     const relevantTerms = vetTerms.filter((term) => lowerContent.includes(term))
-    score += Math.min(relevantTerms.length * 3, 20)
+
+    // More generous scoring for veterinary relevance
+    if (relevantTerms.length >= 8) score += 30
+    else if (relevantTerms.length >= 5) score += 25
+    else if (relevantTerms.length >= 3) score += 20
+    else if (relevantTerms.length >= 1) score += 15
+    else score += 5 // Base score for any document
 
     return Math.min(score, 100)
   }
@@ -289,7 +325,9 @@ export default function DataIngestionPortal() {
       const processedContent = content.slice(0, 1000) + (content.length > 1000 ? "..." : "")
 
       // Create unique ID - let Supabase generate UUID for database, use timestamp for local
+      // Calculate quality score with the extracted data
       const qualityScore = calculateQualityScore(content, extractedData, [])
+      console.log(`Quality score for ${name}: ${qualityScore}`) // Debug log
 
       const newData: ProcessedData = {
         id: useLocalStorage ? `${Date.now()}-${Math.random().toString(36).substr(2, 9)}` : crypto.randomUUID(),
@@ -921,12 +959,10 @@ export default function DataIngestionPortal() {
                     {processedData
                       .filter((data) => {
                         if (qualityFilter === "all") return true
-                        const score = data.quality_score || 0 // Ensure a default value
-                        if (qualityFilter === "excellent") return score >= 80
-                        if (qualityFilter === "good") return score >= 60 && score < 80
-                        if (qualityFilter === "fair") return score >= 40 && score < 60
-                        if (qualityFilter === "poor") return score < 40
-                        return true // Default to showing all if filter is invalid
+                        // Recalculate score if not stored or if it's 0
+                        const score =
+                          data.quality_score ||
+                          calculateQualityScore(data.original_content, data.extracted_data, data.labels)
                       })
                       .map((data) => (
                         <div
