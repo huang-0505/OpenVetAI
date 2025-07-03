@@ -36,6 +36,11 @@ interface QualityMetrics {
   recentUploads: number
   duplicateRisk: number
   readinessScore: number
+  // Add approved-specific fields
+  approvedDocuments: number
+  approvedDocumentsWithLabels: number
+  approvedDocumentsWithoutLabels: number
+  approvedLabelDistribution: Record<string, number>
 }
 
 interface QualityIssue {
@@ -175,18 +180,49 @@ export function DataQualityMetrics() {
       const approvedPercentage = (data.filter((doc) => doc.status === "approved").length / totalDocuments) * 100
       const readinessScore = Math.round(averageQualityScore * 0.4 + labelCoverage * 0.3 + approvedPercentage * 0.3)
 
+      // After the basic metrics calculations, add this filtering for approved documents
+      const approvedData = data.filter((doc) => doc.status === "approved")
+      const approvedQualityScores = approvedData.map((doc) =>
+        calculateQualityScore(doc.original_content, doc.extracted_data, doc.labels),
+      )
+
+      // Update content quality distribution to use only approved documents
+      const approvedContentQualityScores = {
+        excellent: approvedQualityScores.filter((score) => score >= 80).length,
+        good: approvedQualityScores.filter((score) => score >= 60 && score < 80).length,
+        fair: approvedQualityScores.filter((score) => score >= 40 && score < 60).length,
+        poor: approvedQualityScores.filter((score) => score < 40).length,
+      }
+
+      // Update label coverage to use only approved documents
+      const approvedDocumentsWithLabels = approvedData.filter((doc) => doc.labels.length > 0).length
+      const approvedDocumentsWithoutLabels = approvedData.length - approvedDocumentsWithLabels
+
+      // Update label distribution to use only approved documents
+      const approvedLabelDistribution: Record<string, number> = {}
+      approvedData.forEach((doc) => {
+        doc.labels.forEach((label) => {
+          approvedLabelDistribution[label] = (approvedLabelDistribution[label] || 0) + 1
+        })
+      })
+
       setMetrics({
         totalDocuments,
         averageContentLength,
         documentsWithLabels,
         documentsWithoutLabels,
         labelDistribution,
-        contentQualityScores,
+        contentQualityScores: approvedContentQualityScores, // Use approved data
         typeDistribution,
         sourceDistribution,
         recentUploads,
         duplicateRisk,
         readinessScore,
+        // Add new fields for approved-specific metrics
+        approvedDocuments: approvedData.length,
+        approvedDocumentsWithLabels,
+        approvedDocumentsWithoutLabels,
+        approvedLabelDistribution,
       })
 
       // Generate quality issues
@@ -366,72 +402,80 @@ export function DataQualityMetrics() {
             <CardHeader className="pb-3">
               <CardTitle className="flex items-center gap-2">
                 <Target className="h-5 w-5" />
-                Content Quality Distribution
+                Content Quality Distribution (Approved Papers Only)
               </CardTitle>
+              <CardDescription>Quality scores for {metrics.approvedDocuments} approved documents</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <div className="w-3 h-3 bg-green-500 rounded"></div>
-                    <span className="text-sm">Excellent (80-100%)</span>
+              {metrics.approvedDocuments > 0 ? (
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <div className="w-3 h-3 bg-green-500 rounded"></div>
+                      <span className="text-sm">Excellent (80-100%)</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-medium">{metrics.contentQualityScores.excellent}</span>
+                      <div className="w-20">
+                        <Progress
+                          value={(metrics.contentQualityScores.excellent / metrics.approvedDocuments) * 100}
+                          className="h-2"
+                        />
+                      </div>
+                    </div>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm font-medium">{metrics.contentQualityScores.excellent}</span>
-                    <div className="w-20">
-                      <Progress
-                        value={(metrics.contentQualityScores.excellent / metrics.totalDocuments) * 100}
-                        className="h-2"
-                      />
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <div className="w-3 h-3 bg-yellow-500 rounded"></div>
+                      <span className="text-sm">Good (60-79%)</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-medium">{metrics.contentQualityScores.good}</span>
+                      <div className="w-20">
+                        <Progress
+                          value={(metrics.contentQualityScores.good / metrics.approvedDocuments) * 100}
+                          className="h-2"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <div className="w-3 h-3 bg-orange-500 rounded"></div>
+                      <span className="text-sm">Fair (40-59%)</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-medium">{metrics.contentQualityScores.fair}</span>
+                      <div className="w-20">
+                        <Progress
+                          value={(metrics.contentQualityScores.fair / metrics.approvedDocuments) * 100}
+                          className="h-2"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <div className="w-3 h-3 bg-red-500 rounded"></div>
+                      <span className="text-sm">Poor (0-39%)</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-medium">{metrics.contentQualityScores.poor}</span>
+                      <div className="w-20">
+                        <Progress
+                          value={(metrics.contentQualityScores.poor / metrics.approvedDocuments) * 100}
+                          className="h-2"
+                        />
+                      </div>
                     </div>
                   </div>
                 </div>
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <div className="w-3 h-3 bg-yellow-500 rounded"></div>
-                    <span className="text-sm">Good (60-79%)</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm font-medium">{metrics.contentQualityScores.good}</span>
-                    <div className="w-20">
-                      <Progress
-                        value={(metrics.contentQualityScores.good / metrics.totalDocuments) * 100}
-                        className="h-2"
-                      />
-                    </div>
-                  </div>
+              ) : (
+                <div className="text-center py-8 text-gray-500">
+                  <p>No approved documents yet</p>
+                  <p className="text-sm">Approve some documents to see quality distribution</p>
                 </div>
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <div className="w-3 h-3 bg-orange-500 rounded"></div>
-                    <span className="text-sm">Fair (40-59%)</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm font-medium">{metrics.contentQualityScores.fair}</span>
-                    <div className="w-20">
-                      <Progress
-                        value={(metrics.contentQualityScores.fair / metrics.totalDocuments) * 100}
-                        className="h-2"
-                      />
-                    </div>
-                  </div>
-                </div>
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <div className="w-3 h-3 bg-red-500 rounded"></div>
-                    <span className="text-sm">Poor (0-39%)</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm font-medium">{metrics.contentQualityScores.poor}</span>
-                    <div className="w-20">
-                      <Progress
-                        value={(metrics.contentQualityScores.poor / metrics.totalDocuments) * 100}
-                        className="h-2"
-                      />
-                    </div>
-                  </div>
-                </div>
-              </div>
+              )}
             </CardContent>
           </Card>
 
@@ -440,45 +484,58 @@ export function DataQualityMetrics() {
             <CardHeader className="pb-3">
               <CardTitle className="flex items-center gap-2">
                 <FileText className="h-5 w-5" />
-                Label Coverage
+                Label Coverage (Approved Papers Only)
               </CardTitle>
+              <CardDescription>Label statistics for {metrics.approvedDocuments} approved documents</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div className="text-center p-3 bg-green-50 rounded-lg">
-                  <div className="text-xl font-bold text-green-600">{metrics.documentsWithLabels}</div>
-                  <div className="text-sm text-green-600">With Labels</div>
-                </div>
-                <div className="text-center p-3 bg-red-50 rounded-lg">
-                  <div className="text-xl font-bold text-red-600">{metrics.documentsWithoutLabels}</div>
-                  <div className="text-sm text-red-600">Without Labels</div>
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <div className="flex justify-between text-sm">
-                  <span>Label Coverage</span>
-                  <span className="font-medium">
-                    {Math.round((metrics.documentsWithLabels / metrics.totalDocuments) * 100)}%
-                  </span>
-                </div>
-                <Progress value={(metrics.documentsWithLabels / metrics.totalDocuments) * 100} className="h-2" />
-              </div>
-
-              {Object.keys(metrics.labelDistribution).length > 0 && (
-                <div className="space-y-2">
-                  <h4 className="text-sm font-medium">Most Used Labels</h4>
-                  <div className="space-y-1">
-                    {Object.entries(metrics.labelDistribution)
-                      .sort(([, a], [, b]) => b - a)
-                      .slice(0, 5)
-                      .map(([label, count]) => (
-                        <div key={label} className="flex justify-between text-xs">
-                          <span className="truncate">{label}</span>
-                          <span className="font-medium">{count}</span>
-                        </div>
-                      ))}
+              {metrics.approvedDocuments > 0 ? (
+                <>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="text-center p-3 bg-green-50 rounded-lg">
+                      <div className="text-xl font-bold text-green-600">{metrics.approvedDocumentsWithLabels}</div>
+                      <div className="text-sm text-green-600">With Labels</div>
+                    </div>
+                    <div className="text-center p-3 bg-red-50 rounded-lg">
+                      <div className="text-xl font-bold text-red-600">{metrics.approvedDocumentsWithoutLabels}</div>
+                      <div className="text-sm text-red-600">Without Labels</div>
+                    </div>
                   </div>
+
+                  <div className="space-y-2">
+                    <div className="flex justify-between text-sm">
+                      <span>Label Coverage</span>
+                      <span className="font-medium">
+                        {Math.round((metrics.approvedDocumentsWithLabels / metrics.approvedDocuments) * 100)}%
+                      </span>
+                    </div>
+                    <Progress
+                      value={(metrics.approvedDocumentsWithLabels / metrics.approvedDocuments) * 100}
+                      className="h-2"
+                    />
+                  </div>
+
+                  {Object.keys(metrics.approvedLabelDistribution).length > 0 && (
+                    <div className="space-y-2">
+                      <h4 className="text-sm font-medium">Most Used Labels (Approved)</h4>
+                      <div className="space-y-1">
+                        {Object.entries(metrics.approvedLabelDistribution)
+                          .sort(([, a], [, b]) => b - a)
+                          .slice(0, 5)
+                          .map(([label, count]) => (
+                            <div key={label} className="flex justify-between text-xs">
+                              <span className="truncate">{label}</span>
+                              <span className="font-medium">{count}</span>
+                            </div>
+                          ))}
+                      </div>
+                    </div>
+                  )}
+                </>
+              ) : (
+                <div className="text-center py-8 text-gray-500">
+                  <p>No approved documents yet</p>
+                  <p className="text-sm">Approve some documents to see label coverage</p>
                 </div>
               )}
             </CardContent>
