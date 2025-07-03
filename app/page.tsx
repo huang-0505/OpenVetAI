@@ -79,6 +79,46 @@ export default function DataIngestionPortal() {
   const [isMultiSelectMode, setIsMultiSelectMode] = useState(false)
   const [isBulkOperating, setIsBulkOperating] = useState(false)
 
+  // Quality score calculation function (same as in DataQualityMetrics)
+  const calculateQualityScore = (content: string, extractedData: any, labels: string[]): number => {
+    let score = 0
+
+    // Content length score (0-30 points)
+    const contentLength = content.length
+    if (contentLength > 2000) score += 30
+    else if (contentLength > 1000) score += 20
+    else if (contentLength > 500) score += 15
+    else if (contentLength > 200) score += 10
+    else score += 5
+
+    // Extracted data quality (0-30 points)
+    if (extractedData.title && extractedData.title.length > 10) score += 10
+    if (extractedData.summary && extractedData.summary.length > 50) score += 10
+    if (extractedData.keyPoints && extractedData.keyPoints.length >= 3) score += 10
+
+    // Labels score (0-20 points)
+    if (labels.length >= 3) score += 20
+    else if (labels.length >= 2) score += 15
+    else if (labels.length >= 1) score += 10
+    else score += 0
+
+    // Veterinary relevance (0-20 points)
+    const vetTerms = ["veterinary", "animal", "clinical", "diagnosis", "treatment", "therapy", "pathology"]
+    const lowerContent = content.toLowerCase()
+    const relevantTerms = vetTerms.filter((term) => lowerContent.includes(term))
+    score += Math.min(relevantTerms.length * 3, 20)
+
+    return Math.min(score, 100)
+  }
+
+  // Get quality badge variant and label
+  const getQualityBadge = (score: number) => {
+    if (score >= 80) return { variant: "default" as const, label: "Excellent", color: "text-green-600" }
+    if (score >= 60) return { variant: "secondary" as const, label: "Good", color: "text-yellow-600" }
+    if (score >= 40) return { variant: "outline" as const, label: "Fair", color: "text-orange-600" }
+    return { variant: "destructive" as const, label: "Poor", color: "text-red-600" }
+  }
+
   useEffect(() => {
     loadProcessedData()
   }, [])
@@ -608,7 +648,7 @@ export default function DataIngestionPortal() {
     <div className="min-h-screen bg-gray-50 p-4">
       <div className="max-w-7xl mx-auto">
         <div className="mb-6">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">Vet Data Ingestion Portal</h1>
+          <h1 className="text-3xl font-bold text-gray-900 mb-2">Veterinary Data Ingestion Portal</h1>
           <div className="flex items-center justify-between">
             <p className="text-gray-600">
               Upload veterinary journals and research papers to process and prepare data for training
@@ -859,74 +899,105 @@ export default function DataIngestionPortal() {
                     {processedData.length === 0 ? (
                       <p className="text-gray-500 text-center py-4">No data processed yet</p>
                     ) : (
-                      processedData.map((data) => (
-                        <div
-                          key={data.id}
-                          className={`p-3 border rounded-lg transition-colors ${
-                            selectedData?.id === data.id
-                              ? "border-blue-500 bg-blue-50"
-                              : selectedFiles.has(data.id)
-                                ? "border-green-500 bg-green-50"
-                                : "border-gray-200 hover:border-gray-300"
-                          } ${isMultiSelectMode && data.status === "ready" ? "cursor-pointer" : ""}`}
-                          onClick={() => {
-                            if (isMultiSelectMode && data.status === "ready") {
-                              toggleFileSelection(data.id)
-                            } else if (!isMultiSelectMode) {
-                              setSelectedData(data)
-                            }
-                          }}
-                        >
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-2">
-                              {isMultiSelectMode && data.status === "ready" && (
-                                <Checkbox
-                                  checked={selectedFiles.has(data.id)}
-                                  onChange={() => toggleFileSelection(data.id)}
-                                />
-                              )}
-                              <FileText className="h-4 w-4 text-gray-500" />
-                              <span className="font-medium truncate">{data.name}</span>
-                              {!isMultiSelectMode && (
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={(e) => {
-                                    e.stopPropagation()
-                                    setSelectedData(data)
-                                  }}
-                                >
-                                  <Eye className="h-4 w-4" />
-                                </Button>
-                              )}
-                            </div>
-                            <Badge
-                              variant={
-                                data.status === "approved"
-                                  ? "default"
-                                  : data.status === "ready"
-                                    ? "secondary"
-                                    : data.status === "processing"
-                                      ? "outline"
-                                      : "destructive"
+                      processedData.map((data) => {
+                        const qualityScore = calculateQualityScore(
+                          data.original_content,
+                          data.extracted_data,
+                          data.labels,
+                        )
+                        const qualityBadge = getQualityBadge(qualityScore)
+                        const displayLabels = data.labels.slice(0, 3) // Show first 3 labels
+
+                        return (
+                          <div
+                            key={data.id}
+                            className={`p-3 border rounded-lg transition-colors ${
+                              selectedData?.id === data.id
+                                ? "border-blue-500 bg-blue-50"
+                                : selectedFiles.has(data.id)
+                                  ? "border-green-500 bg-green-50"
+                                  : "border-gray-200 hover:border-gray-300"
+                            } ${isMultiSelectMode && data.status === "ready" ? "cursor-pointer" : ""}`}
+                            onClick={() => {
+                              if (isMultiSelectMode && data.status === "ready") {
+                                toggleFileSelection(data.id)
+                              } else if (!isMultiSelectMode) {
+                                setSelectedData(data)
                               }
-                            >
-                              {data.status}
-                            </Badge>
+                            }}
+                          >
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-2">
+                                {isMultiSelectMode && data.status === "ready" && (
+                                  <Checkbox
+                                    checked={selectedFiles.has(data.id)}
+                                    onChange={() => toggleFileSelection(data.id)}
+                                  />
+                                )}
+                                <FileText className="h-4 w-4 text-gray-500" />
+                                <span className="font-medium truncate">{data.name}</span>
+                                {!isMultiSelectMode && (
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={(e) => {
+                                      e.stopPropagation()
+                                      setSelectedData(data)
+                                    }}
+                                  >
+                                    <Eye className="h-4 w-4" />
+                                  </Button>
+                                )}
+                              </div>
+                              <div className="flex items-center gap-2">
+                                {/* Quality Score Badge */}
+                                <Badge variant={qualityBadge.variant} className="text-xs">
+                                  {qualityScore}%
+                                </Badge>
+                                <Badge
+                                  variant={
+                                    data.status === "approved"
+                                      ? "default"
+                                      : data.status === "ready"
+                                        ? "secondary"
+                                        : data.status === "processing"
+                                          ? "outline"
+                                          : "destructive"
+                                  }
+                                >
+                                  {data.status}
+                                </Badge>
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-2 mt-2">
+                              <Badge variant="outline" className="text-xs">
+                                {data.type.replace("-", " ")}
+                              </Badge>
+                              <Badge variant="outline" className="text-xs">
+                                {data.source}
+                              </Badge>
+                              <span className="text-xs text-gray-500">
+                                {new Date(data.created_at).toLocaleDateString()}
+                              </span>
+                            </div>
+                            {/* Display up to 3 labels */}
+                            {displayLabels.length > 0 && (
+                              <div className="flex flex-wrap gap-1 mt-2">
+                                {displayLabels.map((label, index) => (
+                                  <Badge key={index} variant="secondary" className="text-xs">
+                                    {label}
+                                  </Badge>
+                                ))}
+                                {data.labels.length > 3 && (
+                                  <Badge variant="outline" className="text-xs">
+                                    +{data.labels.length - 3} more
+                                  </Badge>
+                                )}
+                              </div>
+                            )}
                           </div>
-                          <div className="flex items-center gap-2 mt-1">
-                            <Badge variant="outline" className="text-xs">
-                              {data.type.replace("-", " ")}
-                            </Badge>
-                            <Badge variant="outline" className="text-xs">
-                              {data.source}
-                            </Badge>
-                            <span className="text-xs text-gray-500">
-                              {new Date(data.created_at).toLocaleDateString()}
-                            </span>
-                          </div>
-                        </div>
-                      ))
+                        )
+                      })
                     )}
                   </div>
                 </CardContent>
