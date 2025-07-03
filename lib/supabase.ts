@@ -20,6 +20,7 @@ export interface ProcessedData {
   }
   labels: string[]
   status: "processing" | "ready" | "approved" | "rejected"
+  quality_score: number
   created_at: string
   updated_at: string
 }

@@ -79,6 +79,9 @@ export default function DataIngestionPortal() {
   const [isMultiSelectMode, setIsMultiSelectMode] = useState(false)
   const [isBulkOperating, setIsBulkOperating] = useState(false)
 
+  // Add after existing state declarations
+  const [qualityFilter, setQualityFilter] = useState<string>("all")
+
   // Quality score calculation function (same as in DataQualityMetrics)
   const calculateQualityScore = (content: string, extractedData: any, labels: string[]): number => {
     let score = 0
@@ -286,6 +289,8 @@ export default function DataIngestionPortal() {
       const processedContent = content.slice(0, 1000) + (content.length > 1000 ? "..." : "")
 
       // Create unique ID - let Supabase generate UUID for database, use timestamp for local
+      const qualityScore = calculateQualityScore(content, extractedData, [])
+
       const newData: ProcessedData = {
         id: useLocalStorage ? `${Date.now()}-${Math.random().toString(36).substr(2, 9)}` : crypto.randomUUID(),
         name,
@@ -298,6 +303,7 @@ export default function DataIngestionPortal() {
         status: "ready" as const,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
+        quality_score: qualityScore,
       }
 
       if (useLocalStorage) {
@@ -648,7 +654,7 @@ export default function DataIngestionPortal() {
     <div className="min-h-screen bg-gray-50 p-4">
       <div className="max-w-7xl mx-auto">
         <div className="mb-6">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">Veterinary Data Ingestion Portal</h1>
+          <h1 className="text-3xl font-bold text-gray-900 mb-2">Vet Data Ingestion Portal</h1>
           <div className="flex items-center justify-between">
             <p className="text-gray-600">
               Upload veterinary journals and research papers to process and prepare data for training
@@ -867,6 +873,21 @@ export default function DataIngestionPortal() {
                       <RefreshCw className="h-4 w-4" />
                     </Button>
                   </CardTitle>
+                  {/* Add this after the existing CardTitle and before the multi-select controls */}
+                  <div className="flex items-center gap-2 pt-2">
+                    <Label className="text-sm font-medium">Filter by Quality:</Label>
+                    <select
+                      value={qualityFilter}
+                      onChange={(e) => setQualityFilter(e.target.value)}
+                      className="text-sm border rounded px-2 py-1"
+                    >
+                      <option value="all">All Quality ({processedData.length})</option>
+                      <option value="excellent">Excellent (80-100%)</option>
+                      <option value="good">Good (60-79%)</option>
+                      <option value="fair">Fair (40-59%)</option>
+                      <option value="poor">Poor (0-39%)</option>
+                    </select>
+                  </div>
                   {readyFiles.length > 1 && (
                     <div className="flex items-center justify-between pt-2">
                       <div className="flex items-center gap-2">
@@ -896,251 +917,112 @@ export default function DataIngestionPortal() {
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-2 max-h-96 overflow-y-auto">
-                    {processedData.length === 0 ? (
-                      <p className="text-gray-500 text-center py-4">No data processed yet</p>
-                    ) : (
-                      processedData.map((data) => {
-                        const qualityScore = calculateQualityScore(
-                          data.original_content,
-                          data.extracted_data,
-                          data.labels,
-                        )
-                        const qualityBadge = getQualityBadge(qualityScore)
-                        const displayLabels = data.labels.slice(0, 3) // Show first 3 labels
-
-                        return (
-                          <div
-                            key={data.id}
-                            className={`p-3 border rounded-lg transition-colors ${
-                              selectedData?.id === data.id
-                                ? "border-blue-500 bg-blue-50"
-                                : selectedFiles.has(data.id)
-                                  ? "border-green-500 bg-green-50"
-                                  : "border-gray-200 hover:border-gray-300"
-                            } ${isMultiSelectMode && data.status === "ready" ? "cursor-pointer" : ""}`}
-                            onClick={() => {
-                              if (isMultiSelectMode && data.status === "ready") {
-                                toggleFileSelection(data.id)
-                              } else if (!isMultiSelectMode) {
-                                setSelectedData(data)
-                              }
-                            }}
-                          >
-                            <div className="flex items-center justify-between">
-                              <div className="flex items-center gap-2">
-                                {isMultiSelectMode && data.status === "ready" && (
-                                  <Checkbox
-                                    checked={selectedFiles.has(data.id)}
-                                    onChange={() => toggleFileSelection(data.id)}
-                                  />
-                                )}
-                                <FileText className="h-4 w-4 text-gray-500" />
-                                <span className="font-medium truncate">{data.name}</span>
-                                {!isMultiSelectMode && (
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={(e) => {
-                                      e.stopPropagation()
-                                      setSelectedData(data)
-                                    }}
-                                  >
-                                    <Eye className="h-4 w-4" />
-                                  </Button>
-                                )}
-                              </div>
-                              <div className="flex items-center gap-2">
-                                {/* Quality Score Badge */}
-                                <Badge variant={qualityBadge.variant} className="text-xs">
-                                  {qualityScore}%
-                                </Badge>
-                                <Badge
-                                  variant={
-                                    data.status === "approved"
-                                      ? "default"
-                                      : data.status === "ready"
-                                        ? "secondary"
-                                        : data.status === "processing"
-                                          ? "outline"
-                                          : "destructive"
-                                  }
-                                >
-                                  {data.status}
-                                </Badge>
-                              </div>
-                            </div>
-                            <div className="flex items-center gap-2 mt-2">
-                              <Badge variant="outline" className="text-xs">
-                                {data.type.replace("-", " ")}
-                              </Badge>
-                              <Badge variant="outline" className="text-xs">
-                                {data.source}
-                              </Badge>
-                              <span className="text-xs text-gray-500">
-                                {new Date(data.created_at).toLocaleDateString()}
-                              </span>
-                            </div>
-                            {/* Display up to 3 labels */}
-                            {displayLabels.length > 0 && (
-                              <div className="flex flex-wrap gap-1 mt-2">
-                                {displayLabels.map((label, index) => (
-                                  <Badge key={index} variant="secondary" className="text-xs">
-                                    {label}
-                                  </Badge>
-                                ))}
-                                {data.labels.length > 3 && (
-                                  <Badge variant="outline" className="text-xs">
-                                    +{data.labels.length - 3} more
-                                  </Badge>
-                                )}
-                              </div>
-                            )}
-                          </div>
-                        )
+                    {/* Filter processed data based on quality */}
+                    {processedData
+                      .filter((data) => {
+                        if (qualityFilter === "all") return true
+                        const score = data.quality_score || 0 // Ensure a default value
+                        if (qualityFilter === "excellent") return score >= 80
+                        if (qualityFilter === "good") return score >= 60 && score < 80
+                        if (qualityFilter === "fair") return score >= 40 && score < 60
+                        if (qualityFilter === "poor") return score < 40
+                        return true // Default to showing all if filter is invalid
                       })
-                    )}
+                      .map((data) => (
+                        <div
+                          key={data.id}
+                          className={`p-3 rounded-md border ${selectedData?.id === data.id ? "border-blue-500" : "border-gray-200"} ${
+                            selectedFiles.has(data.id) ? "bg-blue-50" : ""
+                          } hover:bg-gray-50 cursor-pointer flex items-center justify-between`}
+                          onClick={() => {
+                            if (isMultiSelectMode) {
+                              toggleFileSelection(data.id)
+                            } else {
+                              setSelectedData(data)
+                            }
+                          }}
+                        >
+                          <div className="flex items-center">
+                            {isMultiSelectMode && (
+                              <Checkbox
+                                checked={selectedFiles.has(data.id)}
+                                onCheckedChange={() => toggleFileSelection(data.id)}
+                                className="mr-2"
+                              />
+                            )}
+                            <div className="truncate">
+                              <p className="font-semibold text-sm">{data.name}</p>
+                              <p className="text-xs text-gray-500">
+                                {data.type} • {data.source}
+                              </p>
+                            </div>
+                          </div>
+                          <Badge
+                            variant={getQualityBadge(data.quality_score || 0).variant}
+                            className={getQualityBadge(data.quality_score || 0).color}
+                          >
+                            {getQualityBadge(data.quality_score || 0).label}
+                          </Badge>
+                        </div>
+                      ))}
                   </div>
                 </CardContent>
               </Card>
 
-              {/* Review Panel */}
-              <Card className="h-full">
+              {/* Selected Data Details */}
+              <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
-                    <FileText className="h-5 w-5" />
-                    {selectedFiles.size > 0 ? `Bulk Operations (${selectedFiles.size} selected)` : "Data Review"}
+                    <Eye className="h-5 w-5" />
+                    Data Details
                   </CardTitle>
-                  <CardDescription>
-                    {selectedFiles.size > 0
-                      ? "Apply actions to multiple selected files"
-                      : "Review and approve processed veterinary content before training"}
-                  </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  {selectedFiles.size > 0 ? (
-                    /* Bulk Operations Panel */
-                    <div className="space-y-6">
-                      <div>
-                        <h3 className="font-semibold mb-2">Selected Files ({selectedFiles.size})</h3>
-                        <div className="bg-gray-50 p-3 rounded max-h-32 overflow-y-auto">
-                          {Array.from(selectedFiles).map((fileId) => {
-                            const file = processedData.find((d) => d.id === fileId)
-                            return (
-                              <div key={fileId} className="text-sm py-1">
-                                • {file?.name}
-                              </div>
-                            )
-                          })}
-                        </div>
+                  {selectedData ? (
+                    <>
+                      <div className="space-y-2">
+                        <Label>Filename</Label>
+                        <Input type="text" value={selectedData.name} readOnly />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Type</Label>
+                        <Input type="text" value={selectedData.type} readOnly />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Source</Label>
+                        <Input type="text" value={selectedData.source} readOnly />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Original Content</Label>
+                        <Textarea value={selectedData.original_content} readOnly className="h-24" />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Processed Content</Label>
+                        <Textarea value={selectedData.processed_content} readOnly className="h-24" />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Extracted Data</Label>
+                        <Textarea
+                          value={JSON.stringify(selectedData.extracted_data, null, 2)}
+                          readOnly
+                          className="h-24"
+                        />
                       </div>
 
-                      {/* Bulk Label Assignment */}
-                      <div>
-                        <Label className="text-sm font-medium mb-2 block">Assign Labels to All Selected</Label>
-                        <div className="flex flex-wrap gap-2 mb-3">
-                          {PREDEFINED_LABELS.map((label) => (
-                            <Badge
-                              key={label}
-                              variant="outline"
-                              className="cursor-pointer hover:bg-gray-100"
-                              onClick={() => bulkUpdateLabels([label])}
-                            >
-                              {label}
-                            </Badge>
+                      {/* Labels Management */}
+                      <div className="space-y-2">
+                        <Label>Labels</Label>
+                        <div className="flex flex-wrap gap-2">
+                          {selectedData.labels.map((label) => (
+                            <Badge key={label}>{label}</Badge>
                           ))}
                         </div>
-                      </div>
-
-                      {/* Bulk Actions */}
-                      <div className="space-y-3">
-                        <h3 className="font-semibold">Bulk Actions</h3>
-                        <div className="flex gap-2">
-                          <Button
-                            onClick={() => bulkUpdateStatus("approved")}
-                            disabled={isBulkOperating}
-                            className="flex-1"
-                          >
-                            <CheckCircle className="h-4 w-4 mr-2" />
-                            Approve All
-                          </Button>
-                          <Button
-                            variant="outline"
-                            onClick={() => bulkUpdateStatus("rejected")}
-                            disabled={isBulkOperating}
-                            className="flex-1"
-                          >
-                            Reject All
-                          </Button>
-                        </div>
-                        <Button variant="ghost" onClick={clearSelection} disabled={isBulkOperating} className="w-full">
-                          Clear Selection
-                        </Button>
-                      </div>
-
-                      {isBulkOperating && (
-                        <div className="flex items-center gap-2 text-sm text-gray-600">
-                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-500"></div>
-                          Processing bulk operation...
-                        </div>
-                      )}
-                    </div>
-                  ) : !selectedData ? (
-                    /* No Selection State */
-                    <div className="text-center py-12">
-                      <FileText className="h-12 w-12 text-gray-300 mx-auto mb-4" />
-                      <p className="text-gray-500">
-                        {isMultiSelectMode
-                          ? "Select multiple files to perform bulk operations"
-                          : "Select processed data to review"}
-                      </p>
-                    </div>
-                  ) : (
-                    /* Single File Review */
-                    <div className="space-y-6">
-                      <div>
-                        <h3 className="font-semibold mb-2">Extracted Information</h3>
-                        <div className="space-y-3">
-                          <div>
-                            <Label className="text-sm font-medium">Title</Label>
-                            <p className="text-sm bg-gray-50 p-2 rounded">{selectedData.extracted_data.title}</p>
-                          </div>
-                          <div>
-                            <Label className="text-sm font-medium">Summary</Label>
-                            <p className="text-sm bg-gray-50 p-2 rounded">{selectedData.extracted_data.summary}</p>
-                          </div>
-                          <div>
-                            <Label className="text-sm font-medium">Key Points</Label>
-                            <ul className="text-sm bg-gray-50 p-2 rounded space-y-1">
-                              {selectedData.extracted_data.keyPoints.map((point, index) => (
-                                <li key={index} className="flex items-start gap-2">
-                                  <span className="text-gray-400">•</span>
-                                  {point}
-                                </li>
-                              ))}
-                            </ul>
-                          </div>
-                          <div>
-                            <Label className="text-sm font-medium">Metadata</Label>
-                            <div className="bg-gray-50 p-2 rounded space-y-1">
-                              {Object.entries(selectedData.extracted_data.metadata).map(([key, value]) => (
-                                <div key={key} className="flex justify-between text-sm">
-                                  <span className="font-medium">{key}:</span>
-                                  <span>{value}</span>
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-
-                      <div>
-                        <Label className="text-sm font-medium mb-2 block">Assign Veterinary Labels</Label>
                         <div className="flex flex-wrap gap-2">
                           {PREDEFINED_LABELS.map((label) => (
-                            <Badge
+                            <Button
                               key={label}
-                              variant={selectedData.labels.includes(label) ? "default" : "outline"}
-                              className="cursor-pointer"
+                              variant="outline"
+                              size="sm"
                               onClick={() => {
                                 const newLabels = selectedData.labels.includes(label)
                                   ? selectedData.labels.filter((l) => l !== label)
@@ -1149,39 +1031,91 @@ export default function DataIngestionPortal() {
                               }}
                             >
                               {label}
-                            </Badge>
+                            </Button>
                           ))}
                         </div>
                       </div>
 
-                      <div>
-                        <Label className="text-sm font-medium mb-2 block">Processed Content Preview</Label>
-                        <Textarea value={selectedData.processed_content} readOnly className="min-h-32 text-sm" />
+                      {/* Status Management */}
+                      <div className="space-y-2">
+                        <Label>Status</Label>
+                        <div className="flex gap-2">
+                          <Button
+                            variant={selectedData.status === "ready" ? "default" : "outline"}
+                            onClick={() => updateDataStatus(selectedData.id, "ready")}
+                          >
+                            Ready
+                          </Button>
+                          <Button
+                            variant={selectedData.status === "approved" ? "default" : "outline"}
+                            onClick={() => updateDataStatus(selectedData.id, "approved")}
+                          >
+                            Approve
+                          </Button>
+                          <Button
+                            variant={selectedData.status === "rejected" ? "default" : "outline"}
+                            onClick={() => updateDataStatus(selectedData.id, "rejected")}
+                          >
+                            Reject
+                          </Button>
+                        </div>
                       </div>
-
-                      <div className="flex gap-2 pt-4 border-t">
-                        <Button
-                          onClick={() => updateDataStatus(selectedData.id, "approved")}
-                          disabled={selectedData.status === "approved"}
-                          className="flex-1"
-                        >
-                          <CheckCircle className="h-4 w-4 mr-2" />
-                          Approve
-                        </Button>
-                        <Button
-                          variant="outline"
-                          onClick={() => updateDataStatus(selectedData.id, "rejected")}
-                          disabled={selectedData.status === "rejected"}
-                          className="flex-1"
-                        >
-                          Reject
-                        </Button>
-                      </div>
-                    </div>
+                    </>
+                  ) : (
+                    <p className="text-gray-500">Select a file to view details</p>
                   )}
                 </CardContent>
               </Card>
             </div>
+
+            {/* Bulk Actions */}
+            {isMultiSelectMode && (
+              <Card className="bg-blue-50 border-blue-200">
+                <CardHeader>
+                  <CardTitle>Bulk Actions</CardTitle>
+                  <CardDescription>Perform actions on {selectedFiles.size} selected files</CardDescription>
+                </CardHeader>
+                <CardContent className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label className="block pb-2">Update Status</Label>
+                    <div className="flex flex-col gap-2">
+                      <Button variant="outline" disabled={isBulkOperating} onClick={() => bulkUpdateStatus("ready")}>
+                        Set to Ready
+                      </Button>
+                      <Button variant="outline" disabled={isBulkOperating} onClick={() => bulkUpdateStatus("approved")}>
+                        Approve
+                      </Button>
+                      <Button variant="outline" disabled={isBulkOperating} onClick={() => bulkUpdateStatus("rejected")}>
+                        Reject
+                      </Button>
+                    </div>
+                  </div>
+
+                  <div>
+                    <Label className="block pb-2">Update Labels</Label>
+                    <div className="flex flex-wrap gap-2">
+                      {PREDEFINED_LABELS.map((label) => (
+                        <Button
+                          key={label}
+                          variant="outline"
+                          size="sm"
+                          disabled={isBulkOperating}
+                          onClick={() => {
+                            bulkUpdateLabels(
+                              processedData[0].labels.includes(label)
+                                ? processedData[0].labels.filter((l) => l !== label)
+                                : [...processedData[0].labels, label],
+                            )
+                          }}
+                        >
+                          {label}
+                        </Button>
+                      ))}
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
           </TabsContent>
         </Tabs>
       </div>
