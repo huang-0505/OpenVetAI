@@ -548,8 +548,16 @@ export default function DataIngestionPortal() {
   }
 
   const selectAllFiles = () => {
-    const readyFiles = processedData.filter((data) => data.status === "ready").map((data) => data.id)
-    setSelectedFiles(new Set(readyFiles))
+    const filteredData = processedData.filter((data) => {
+      if (qualityFilter === "all") return true
+      const score = data.quality_score || calculateQualityScore(data.original_content, data.extracted_data, data.labels)
+      if (qualityFilter === "excellent") return score >= 80
+      if (qualityFilter === "good") return score >= 60 && score < 80
+      if (qualityFilter === "fair") return score >= 40 && score < 60
+      if (qualityFilter === "poor") return score < 40
+      return true
+    })
+    setSelectedFiles(new Set(filteredData.map((data) => data.id)))
   }
 
   const clearSelection = () => {
@@ -1006,7 +1014,8 @@ export default function DataIngestionPortal() {
                       )}
                     </div>
                   </CardTitle>
-                  {/* Add this after the existing CardTitle and before the multi-select controls */}
+
+                  {/* Quality Filter */}
                   <div className="flex items-center gap-2 pt-2">
                     <Label className="text-sm font-medium">Filter by Quality:</Label>
                     <select
@@ -1015,46 +1024,65 @@ export default function DataIngestionPortal() {
                       className="text-sm border rounded px-2 py-1"
                     >
                       <option value="all">All Quality ({processedData.length})</option>
-                      <option value="excellent">Excellent (80-100%)</option>
+                      <option value="excellent">High Quality (80-100%)</option>
                       <option value="good">Good (60-79%)</option>
                       <option value="fair">Fair (40-59%)</option>
                       <option value="poor">Poor (0-39%)</option>
                     </select>
                   </div>
-                  {readyFiles.length > 1 && (
-                    <div className="flex items-center justify-between pt-2">
-                      <div className="flex items-center gap-2">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={toggleMultiSelectMode}
-                          className={isMultiSelectMode ? "bg-blue-50 border-blue-200" : ""}
-                        >
-                          {isMultiSelectMode ? <CheckSquare className="h-4 w-4" /> : <Square className="h-4 w-4" />}
-                          Multi-Select
-                        </Button>
-                        {isMultiSelectMode && (
-                          <>
-                            <Button variant="ghost" size="sm" onClick={selectAllFiles}>
-                              Select All Ready
-                            </Button>
-                            <Button variant="ghost" size="sm" onClick={clearSelection}>
-                              Clear
-                            </Button>
-                          </>
-                        )}
-                      </div>
-                      {selectedFiles.size > 0 && <Badge variant="secondary">{selectedFiles.size} selected</Badge>}
+
+                  {/* Selection Controls */}
+                  <div className="flex items-center justify-between pt-2">
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={toggleMultiSelectMode}
+                        className={isMultiSelectMode ? "bg-blue-50 border-blue-200" : ""}
+                      >
+                        {isMultiSelectMode ? <CheckSquare className="h-4 w-4" /> : <Square className="h-4 w-4" />}
+                        Multi-Select
+                      </Button>
+                      {isMultiSelectMode && (
+                        <>
+                          <Button variant="ghost" size="sm" onClick={selectAllFiles}>
+                            Select All
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => {
+                              const filteredData = processedData.filter((data) => {
+                                if (qualityFilter === "all") return true
+                                const score =
+                                  data.quality_score ||
+                                  calculateQualityScore(data.original_content, data.extracted_data, data.labels)
+                                if (qualityFilter === "excellent") return score >= 80
+                                if (qualityFilter === "good") return score >= 60 && score < 80
+                                if (qualityFilter === "fair") return score >= 40 && score < 60
+                                if (qualityFilter === "poor") return score < 40
+                                return true
+                              })
+                              setSelectedFiles(new Set(filteredData.map((d) => d.id)))
+                            }}
+                          >
+                            Select Filtered
+                          </Button>
+                          <Button variant="ghost" size="sm" onClick={clearSelection}>
+                            Clear
+                          </Button>
+                        </>
+                      )}
                     </div>
-                  )}
+                    {selectedFiles.size > 0 && <Badge variant="secondary">{selectedFiles.size} selected</Badge>}
+                  </div>
                 </CardHeader>
+
                 <CardContent>
                   <div className="space-y-2 max-h-96 overflow-y-auto">
-                    {/* Filter processed data based on quality */}
                     {processedData
                       .filter((data) => {
                         if (qualityFilter === "all") return true
-                        // Recalculate score if not stored or if it's 0
                         const score =
                           data.quality_score ||
                           calculateQualityScore(data.original_content, data.extracted_data, data.labels)
@@ -1064,58 +1092,73 @@ export default function DataIngestionPortal() {
                         if (qualityFilter === "poor") return score < 40
                         return true
                       })
-                      .map((data) => (
-                        <div
-                          key={data.id}
-                          className={`p-3 rounded-md border ${selectedData?.id === data.id ? "border-blue-500" : "border-gray-200"} ${
-                            selectedFiles.has(data.id) ? "bg-blue-50" : ""
-                          } hover:bg-gray-50 cursor-pointer flex items-center justify-between group`}
-                        >
+                      .map((data) => {
+                        const qualityScore =
+                          data.quality_score ||
+                          calculateQualityScore(data.original_content, data.extracted_data, data.labels)
+                        const qualityBadge = getQualityBadge(qualityScore)
+
+                        return (
                           <div
-                            className="flex items-center flex-1"
-                            onClick={() => {
-                              if (isMultiSelectMode) {
-                                toggleFileSelection(data.id)
-                              } else {
-                                setSelectedData(data)
-                              }
-                            }}
+                            key={data.id}
+                            className={`p-3 rounded-md border ${selectedData?.id === data.id ? "border-blue-500 bg-blue-50" : "border-gray-200"} ${
+                              selectedFiles.has(data.id) ? "bg-blue-50 border-blue-300" : ""
+                            } hover:bg-gray-50 cursor-pointer flex items-center justify-between group`}
                           >
-                            {isMultiSelectMode && (
-                              <Checkbox
-                                checked={selectedFiles.has(data.id)}
-                                onCheckedChange={() => toggleFileSelection(data.id)}
-                                className="mr-2"
-                              />
-                            )}
-                            <div className="truncate flex-1">
-                              <p className="font-semibold text-sm">{data.name}</p>
-                              <p className="text-xs text-gray-500">
-                                {data.type} • {data.source}
-                              </p>
+                            <div
+                              className="flex items-center flex-1"
+                              onClick={() => {
+                                if (isMultiSelectMode) {
+                                  toggleFileSelection(data.id)
+                                } else {
+                                  setSelectedData(data)
+                                }
+                              }}
+                            >
+                              {isMultiSelectMode && (
+                                <Checkbox
+                                  checked={selectedFiles.has(data.id)}
+                                  onCheckedChange={() => toggleFileSelection(data.id)}
+                                  className="mr-2"
+                                />
+                              )}
+                              <div className="truncate flex-1">
+                                <p className="font-semibold text-sm">{data.name}</p>
+                                <p className="text-xs text-gray-500">
+                                  {data.type} • {data.source} • {qualityScore}%
+                                </p>
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <Badge
+                                variant={qualityBadge.variant}
+                                className={`${qualityBadge.color} ${
+                                  qualityScore >= 80
+                                    ? "bg-green-100 text-green-800 border-green-200"
+                                    : qualityScore >= 60
+                                      ? "bg-blue-100 text-blue-800 border-blue-200"
+                                      : qualityScore >= 40
+                                        ? "bg-orange-100 text-orange-800 border-orange-200"
+                                        : "bg-red-100 text-red-800 border-red-200"
+                                }`}
+                              >
+                                {qualityScore >= 80 ? "High" : qualityBadge.label}
+                              </Badge>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  clearSelectedData(data.id)
+                                }}
+                                className="opacity-0 group-hover:opacity-100 transition-opacity text-red-600 hover:text-red-700 hover:bg-red-50"
+                              >
+                                <X className="h-4 w-4" />
+                              </Button>
                             </div>
                           </div>
-                          <div className="flex items-center gap-2">
-                            <Badge
-                              variant={getQualityBadge(data.quality_score || 0).variant}
-                              className={getQualityBadge(data.quality_score || 0).color}
-                            >
-                              {getQualityBadge(data.quality_score || 0).label}
-                            </Badge>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={(e) => {
-                                e.stopPropagation()
-                                clearSelectedData(data.id)
-                              }}
-                              className="opacity-0 group-hover:opacity-100 transition-opacity text-red-600 hover:text-red-700 hover:bg-red-50"
-                            >
-                              <X className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        </div>
-                      ))}
+                        )
+                      })}
                   </div>
                 </CardContent>
               </Card>
@@ -1125,11 +1168,64 @@ export default function DataIngestionPortal() {
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <Eye className="h-5 w-5" />
-                    Data Details
+                    {selectedFiles.size > 1 ? `Selected Data (${selectedFiles.size})` : "Data Details"}
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  {selectedData ? (
+                  {selectedFiles.size > 1 ? (
+                    // Show summary when multiple files are selected
+                    <div className="space-y-4">
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="text-center p-4 bg-green-50 rounded-lg">
+                          <p className="text-2xl font-bold text-green-600">
+                            {
+                              Array.from(selectedFiles).filter((id) => {
+                                const data = processedData.find((d) => d.id === id)
+                                const score = data?.quality_score || 0
+                                return score >= 80
+                              }).length
+                            }
+                          </p>
+                          <p className="text-sm text-green-700">High Quality</p>
+                        </div>
+                        <div className="text-center p-4 bg-red-50 rounded-lg">
+                          <p className="text-2xl font-bold text-red-600">
+                            {
+                              Array.from(selectedFiles).filter((id) => {
+                                const data = processedData.find((d) => d.id === id)
+                                const score = data?.quality_score || 0
+                                return score < 40
+                              }).length
+                            }
+                          </p>
+                          <p className="text-sm text-red-700">Poor Quality</p>
+                        </div>
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label>Selected Files:</Label>
+                        <div className="max-h-32 overflow-y-auto space-y-1">
+                          {Array.from(selectedFiles).map((id) => {
+                            const data = processedData.find((d) => d.id === id)
+                            if (!data) return null
+                            const score = data.quality_score || 0
+                            return (
+                              <div
+                                key={id}
+                                className="flex items-center justify-between text-sm p-2 bg-gray-50 rounded"
+                              >
+                                <span className="truncate">{data.name}</span>
+                                <Badge variant="outline" className="text-xs">
+                                  {score}%
+                                </Badge>
+                              </div>
+                            )
+                          })}
+                        </div>
+                      </div>
+                    </div>
+                  ) : selectedData ? (
+                    // Show detailed view for single selection
                     <>
                       <div className="space-y-2">
                         <Label>Filename</Label>
@@ -1142,6 +1238,20 @@ export default function DataIngestionPortal() {
                       <div className="space-y-2">
                         <Label>Source</Label>
                         <Input type="text" value={selectedData.source} readOnly />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Quality Score</Label>
+                        <div className="flex items-center gap-2">
+                          <Input type="text" value={`${selectedData.quality_score || 0}%`} readOnly />
+                          <Badge
+                            variant={getQualityBadge(selectedData.quality_score || 0).variant}
+                            className={getQualityBadge(selectedData.quality_score || 0).color}
+                          >
+                            {selectedData.quality_score >= 80
+                              ? "High"
+                              : getQualityBadge(selectedData.quality_score || 0).label}
+                          </Badge>
+                        </div>
                       </div>
                       <div className="space-y-2">
                         <Label>Original Content</Label>
@@ -1169,7 +1279,7 @@ export default function DataIngestionPortal() {
                           ))}
                         </div>
                         <div className="flex flex-wrap gap-2">
-                          {PREDEFINED_LABELS.map((label) => (
+                          {PREDEFINED_LABELS.slice(0, 6).map((label) => (
                             <Button
                               key={label}
                               variant="outline"
@@ -1219,53 +1329,106 @@ export default function DataIngestionPortal() {
               </Card>
             </div>
 
-            {/* Bulk Actions */}
-            {isMultiSelectMode && (
+            {/* Bulk Actions - Moved below the data list */}
+            {isMultiSelectMode && selectedFiles.size > 0 && (
               <Card className="bg-blue-50 border-blue-200">
                 <CardHeader>
                   <CardTitle>Bulk Actions</CardTitle>
                   <CardDescription>Perform actions on {selectedFiles.size} selected files</CardDescription>
                 </CardHeader>
-                <CardContent className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label className="block pb-2">Update Status</Label>
-                    <div className="flex flex-col gap-2">
-                      <Button variant="outline" disabled={isBulkOperating} onClick={() => bulkUpdateStatus("ready")}>
-                        Set to Ready
-                      </Button>
-                      <Button variant="outline" disabled={isBulkOperating} onClick={() => bulkUpdateStatus("approved")}>
-                        Approve
-                      </Button>
-                      <Button variant="outline" disabled={isBulkOperating} onClick={() => bulkUpdateStatus("rejected")}>
-                        Reject
-                      </Button>
-                      <Button
-                        variant="outline"
-                        disabled={isBulkOperating}
-                        onClick={bulkClearSelected}
-                        className="text-red-600 hover:text-red-700 hover:bg-red-50 bg-transparent"
-                      >
-                        Delete Selected
-                      </Button>
-                    </div>
-                  </div>
-
-                  <div>
-                    <Label className="block pb-2">Update Labels</Label>
-                    <div className="flex flex-wrap gap-2">
-                      {PREDEFINED_LABELS.slice(0, 6).map((label) => (
+                <CardContent>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    {/* Quick Actions */}
+                    <div>
+                      <Label className="block pb-2 font-medium">Quick Actions</Label>
+                      <div className="flex flex-col gap-2">
                         <Button
-                          key={label}
+                          variant="default"
+                          disabled={isBulkOperating}
+                          onClick={() => bulkUpdateStatus("approved")}
+                          className="bg-green-600 hover:bg-green-700"
+                        >
+                          ✓ Approve All ({selectedFiles.size})
+                        </Button>
+                        <Button
+                          variant="destructive"
+                          disabled={isBulkOperating}
+                          onClick={() => bulkUpdateStatus("rejected")}
+                        >
+                          ✗ Reject All ({selectedFiles.size})
+                        </Button>
+                        <Button
                           variant="outline"
-                          size="sm"
+                          disabled={isBulkOperating}
+                          onClick={bulkClearSelected}
+                          className="text-red-600 hover:text-red-700 hover:bg-red-50 bg-transparent"
+                        >
+                          🗑 Delete Selected
+                        </Button>
+                      </div>
+                    </div>
+
+                    {/* Smart Actions */}
+                    <div>
+                      <Label className="block pb-2 font-medium">Smart Actions</Label>
+                      <div className="flex flex-col gap-2">
+                        <Button
+                          variant="outline"
                           disabled={isBulkOperating}
                           onClick={() => {
-                            bulkUpdateLabels([label])
+                            // Approve high quality, reject poor quality
+                            const highQualityIds = Array.from(selectedFiles).filter((id) => {
+                              const data = processedData.find((d) => d.id === id)
+                              const score = data?.quality_score || 0
+                              return score >= 80
+                            })
+                            const poorQualityIds = Array.from(selectedFiles).filter((id) => {
+                              const data = processedData.find((d) => d.id === id)
+                              const score = data?.quality_score || 0
+                              return score < 40
+                            })
+
+                            // Update high quality to approved
+                            if (highQualityIds.length > 0) {
+                              setSelectedFiles(new Set(highQualityIds))
+                              setTimeout(() => bulkUpdateStatus("approved"), 100)
+                            }
+
+                            // Update poor quality to rejected
+                            if (poorQualityIds.length > 0) {
+                              setTimeout(() => {
+                                setSelectedFiles(new Set(poorQualityIds))
+                                setTimeout(() => bulkUpdateStatus("rejected"), 100)
+                              }, 500)
+                            }
                           }}
+                          className="bg-blue-50 hover:bg-blue-100"
                         >
-                          {label}
+                          🎯 Auto-Sort by Quality
                         </Button>
-                      ))}
+                        <Button variant="outline" disabled={isBulkOperating} onClick={() => bulkUpdateStatus("ready")}>
+                          📋 Set to Ready
+                        </Button>
+                      </div>
+                    </div>
+
+                    {/* Label Actions */}
+                    <div>
+                      <Label className="block pb-2 font-medium">Add Labels</Label>
+                      <div className="flex flex-wrap gap-2">
+                        {PREDEFINED_LABELS.slice(0, 4).map((label) => (
+                          <Button
+                            key={label}
+                            variant="outline"
+                            size="sm"
+                            disabled={isBulkOperating}
+                            onClick={() => bulkUpdateLabels([label])}
+                            className="text-xs"
+                          >
+                            {label}
+                          </Button>
+                        ))}
+                      </div>
                     </div>
                   </div>
                 </CardContent>
