@@ -7,6 +7,7 @@ export async function processVeterinaryContent(
   summary: string
   keyPoints: string[]
   metadata: Record<string, string>
+  suggestedLabels: string[]
 }> {
   try {
     // Extract title from content or filename
@@ -87,11 +88,15 @@ export async function processVeterinaryContent(
       metadata["Animals Mentioned"] = uniqueAnimals.slice(0, 3).join(", ")
     }
 
+    // Auto-assign labels based on content analysis
+    const suggestedLabels = autoAssignLabels(content, filename, title)
+
     return {
       title,
       summary,
       keyPoints,
       metadata,
+      suggestedLabels,
     }
   } catch (error) {
     console.error("Error processing veterinary content:", error)
@@ -112,6 +117,134 @@ export async function processVeterinaryContent(
         Status: "Processed",
         "Word Count": `~${content.split(/\s+/).length} words`,
       },
+      suggestedLabels: ["Veterinary Medicine"], // Fallback label
     }
   }
+}
+
+// Auto-assign labels based on content analysis
+function autoAssignLabels(content: string, filename: string, title: string): string[] {
+  const labels: string[] = []
+  const lowerContent = content.toLowerCase()
+  const lowerFilename = filename.toLowerCase()
+  const lowerTitle = title.toLowerCase()
+  const combinedText = `${lowerContent} ${lowerFilename} ${lowerTitle}`
+
+  // Animal size categories
+  const smallAnimals = ["dog", "cat", "rabbit", "ferret", "guinea pig", "hamster", "bird", "canine", "feline"]
+  const largeAnimals = [
+    "horse",
+    "cattle",
+    "cow",
+    "bull",
+    "pig",
+    "sheep",
+    "goat",
+    "llama",
+    "alpaca",
+    "equine",
+    "bovine",
+    "porcine",
+    "ovine",
+  ]
+  const exoticAnimals = ["reptile", "snake", "lizard", "turtle", "bird", "parrot", "exotic", "wildlife", "zoo", "avian"]
+
+  // Check for animal categories
+  if (smallAnimals.some((animal) => combinedText.includes(animal))) {
+    labels.push("Small Animal Medicine")
+  }
+  if (largeAnimals.some((animal) => combinedText.includes(animal))) {
+    labels.push("Large Animal Medicine")
+  }
+  if (exoticAnimals.some((animal) => combinedText.includes(animal))) {
+    labels.push("Exotic Animal Medicine")
+  }
+
+  // Medical specialties
+  const surgeryTerms = [
+    "surgery",
+    "surgical",
+    "operation",
+    "procedure",
+    "anesthesia",
+    "post-operative",
+    "pre-operative",
+  ]
+  const pathologyTerms = ["pathology", "histopathology", "necropsy", "autopsy", "biopsy", "cytology", "tumor", "cancer"]
+  const diagnosisTerms = ["diagnosis", "diagnostic", "examination", "clinical signs", "symptoms", "differential"]
+  const treatmentTerms = ["treatment", "therapy", "medication", "drug", "antibiotic", "protocol", "management"]
+  const preventiveTerms = [
+    "prevention",
+    "preventive",
+    "vaccination",
+    "vaccine",
+    "prophylaxis",
+    "wellness",
+    "health maintenance",
+  ]
+  const nutritionTerms = ["nutrition", "diet", "feeding", "food", "nutritional", "supplement", "obesity", "weight"]
+  const pharmacologyTerms = ["pharmacology", "drug", "medication", "dosage", "pharmacokinetics", "adverse effects"]
+  const behaviorTerms = ["behavior", "behavioural", "training", "aggression", "anxiety", "stress", "enrichment"]
+  const emergencyTerms = ["emergency", "critical", "intensive care", "trauma", "shock", "resuscitation", "urgent"]
+  const oncologyTerms = ["oncology", "cancer", "tumor", "neoplasia", "chemotherapy", "radiation", "metastasis"]
+  const reproductiveTerms = ["reproduction", "breeding", "pregnancy", "parturition", "fertility", "estrus", "mating"]
+  const infectiousTerms = [
+    "infectious",
+    "infection",
+    "bacteria",
+    "virus",
+    "parasite",
+    "contagious",
+    "epidemic",
+    "zoonotic",
+  ]
+
+  if (surgeryTerms.some((term) => combinedText.includes(term))) {
+    labels.push("Veterinary Surgery")
+  }
+  if (pathologyTerms.some((term) => combinedText.includes(term))) {
+    labels.push("Animal Pathology")
+  }
+  if (diagnosisTerms.some((term) => combinedText.includes(term))) {
+    labels.push("Clinical Diagnosis")
+  }
+  if (treatmentTerms.some((term) => combinedText.includes(term))) {
+    labels.push("Treatment Protocols")
+  }
+  if (preventiveTerms.some((term) => combinedText.includes(term))) {
+    labels.push("Preventive Medicine")
+  }
+  if (nutritionTerms.some((term) => combinedText.includes(term))) {
+    labels.push("Animal Nutrition")
+  }
+  if (pharmacologyTerms.some((term) => combinedText.includes(term))) {
+    labels.push("Veterinary Pharmacology")
+  }
+  if (behaviorTerms.some((term) => combinedText.includes(term))) {
+    labels.push("Animal Behavior")
+  }
+  if (emergencyTerms.some((term) => combinedText.includes(term))) {
+    labels.push("Emergency Medicine")
+  }
+  if (oncologyTerms.some((term) => combinedText.includes(term))) {
+    labels.push("Veterinary Oncology")
+  }
+  if (reproductiveTerms.some((term) => combinedText.includes(term))) {
+    labels.push("Reproductive Medicine")
+  }
+  if (infectiousTerms.some((term) => combinedText.includes(term))) {
+    labels.push("Infectious Diseases")
+  }
+
+  // If no specific labels found, assign general veterinary medicine
+  if (labels.length === 0) {
+    // Check if it's clearly veterinary content
+    const vetTerms = ["veterinary", "animal", "clinical", "medical", "health"]
+    if (vetTerms.some((term) => combinedText.includes(term))) {
+      labels.push("Veterinary Medicine")
+    }
+  }
+
+  // Limit to top 3 most relevant labels to avoid over-labeling
+  return labels.slice(0, 3)
 }

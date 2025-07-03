@@ -1,135 +1,159 @@
 import type { ProcessedData } from "./supabase"
 
-// Interface for duplicate check result
-export interface DuplicateCheckResult {
+interface DuplicateCheckOptions {
+  checkName?: boolean
+  checkContent?: boolean
+  contentThreshold?: number
+  caseSensitive?: boolean
+}
+
+interface DuplicateResult {
   isDuplicate: boolean
   existingFile?: string
-  similarity?: number
   reason?: string
 }
 
-/**
- * Basic duplicate detection by filename
- * This is the default implementation that checks for exact filename matches
- */
-export async function checkDuplicateByName(
-  name: string,
-  existingData: ProcessedData[],
-  options = { caseSensitive: false, exactMatch: true },
-): Promise<DuplicateCheckResult> {
-  const normalizedName = options.caseSensitive ? name.trim() : name.toLowerCase().trim()
-
-  const existing = existingData.find((data) => {
-    const dataName = options.caseSensitive ? data.name.trim() : data.name.toLowerCase().trim()
-    return options.exactMatch ? dataName === normalizedName : dataName.includes(normalizedName)
-  })
-
-  return {
-    isDuplicate: !!existing,
-    existingFile: existing?.name,
-    reason: existing ? "Filename already exists" : undefined,
-  }
-}
-
-/**
- * Advanced duplicate detection by content similarity
- * This implementation checks for content similarity using a simple algorithm
- */
-export function checkDuplicateByContent(
-  content: string,
-  existingData: ProcessedData[],
-  options = { threshold: 0.8, sampleSize: 1000 },
-): DuplicateCheckResult {
-  // Take a sample of the content for comparison (for performance)
-  const contentSample = content.slice(0, options.sampleSize).toLowerCase()
-
-  // Find the most similar content
-  let highestSimilarity = 0
-  let mostSimilarFile: ProcessedData | undefined
-
-  for (const data of existingData) {
-    const existingSample = data.original_content.slice(0, options.sampleSize).toLowerCase()
-    const similarity = calculateSimilarity(contentSample, existingSample)
-
-    if (similarity > highestSimilarity) {
-      highestSimilarity = similarity
-      mostSimilarFile = data
-    }
-  }
-
-  // Check if similarity exceeds threshold
-  const isDuplicate = highestSimilarity >= options.threshold
-
-  return {
-    isDuplicate,
-    existingFile: mostSimilarFile?.name,
-    similarity: highestSimilarity,
-    reason: isDuplicate ? `Content is ${Math.round(highestSimilarity * 100)}% similar to existing file` : undefined,
-  }
-}
-
-/**
- * Custom duplicate detection that combines multiple strategies
- * You can modify this function to implement your own custom logic
- */
 export async function customDuplicateCheck(
   name: string,
   content: string,
   existingData: ProcessedData[],
-  options = {
-    checkName: true,
-    checkContent: true,
-    contentThreshold: 0.7,
-    caseSensitive: false,
-  },
-): Promise<DuplicateCheckResult> {
-  // Check by name first (faster)
-  if (options.checkName) {
-    const nameCheck = await checkDuplicateByName(name, existingData, {
-      caseSensitive: options.caseSensitive,
-      exactMatch: true,
-    })
+  options: DuplicateCheckOptions = {},
+): Promise<DuplicateResult> {
+  const { checkName = true, checkContent = true, contentThreshold = 0.8, caseSensitive = false } = options
 
-    if (nameCheck.isDuplicate) {
-      return nameCheck
+  const normalizedName = caseSensitive ? name : name.toLowerCase()
+  const normalizedContent = caseSensitive ? content : content.toLowerCase()
+
+  for (const existingDoc of existingData) {
+    // Check name similarity if enabled
+    if (checkName) {
+      const existingName = caseSensitive ? existingDoc.name : existingDoc.name.toLowerCase()
+
+      // Exact match
+      if (normalizedName === existingName) {
+        return {
+          isDuplicate: true,
+          existingFile: existingDoc.name,
+          reason: "Exact filename match",
+        }
+      }
+
+      // Similar name check (Levenshtein distance)
+      const similarity = calculateStringSimilarity(normalizedName, existingName)
+      if (similarity > 0.85) {
+        return {
+          isDuplicate: true,
+          existingFile: existingDoc.name,
+          reason: `Similar filename (${Math.round(similarity * 100)}% match)`,
+        }
+      }
+    }
+
+    // Check content similarity if enabled
+    if (checkContent) {
+      const existingContent = caseSensitive ? existingDoc.original_content : existingDoc.original_content.toLowerCase()
+
+      // Skip very short content
+      if (normalizedContent.length < 100 || existingContent.length < 100) {
+        continue
+      }
+
+      const contentSimilarity = calculateContentSimilarity(normalizedContent, existingContent)
+      if (contentSimilarity > contentThreshold) {
+        return {
+          isDuplicate: true,
+          existingFile: existingDoc.name,
+          reason: `Similar content (${Math.round(contentSimilarity * 100)}% match)`,
+        }
+      }
     }
   }
 
-  // Then check by content if needed
-  if (options.checkContent) {
-    const contentCheck = checkDuplicateByContent(content, existingData, {
-      threshold: options.contentThreshold,
-      sampleSize: 1000,
-    })
-
-    if (contentCheck.isDuplicate) {
-      return contentCheck
-    }
-  }
-
-  // Add your own custom checks here!
-  // For example, you could check for similar titles in the extracted data
-  // or use more sophisticated text similarity algorithms
-
-  return {
-    isDuplicate: false,
-  }
+  return { isDuplicate: false }
 }
 
-/**
- * Calculate similarity between two text strings
- * This is a simple Jaccard similarity implementation
- * You can replace this with more sophisticated algorithms
- */
-function calculateSimilarity(text1: string, text2: string): number {
-  // Simple implementation using word overlap (Jaccard similarity)
-  const words1 = new Set(text1.split(/\s+/).filter(Boolean))
-  const words2 = new Set(text2.split(/\s+/).filter(Boolean))
+// Calculate string similarity using Levenshtein distance
+function calculateStringSimilarity(str1: string, str2: string): number {
+  const len1 = str1.length
+  const len2 = str2.length
 
-  // Find intersection and union
-  const intersection = new Set([...words1].filter((word) => words2.has(word)))
-  const union = new Set([...words1, ...words2])
+  if (len1 === 0) return len2 === 0 ? 1 : 0
+  if (len2 === 0) return 0
 
-  // Calculate Jaccard similarity
+  const matrix = Array(len2 + 1)
+    .fill(null)
+    .map(() => Array(len1 + 1).fill(null))
+
+  for (let i = 0; i <= len1; i++) matrix[0][i] = i
+  for (let j = 0; j <= len2; j++) matrix[j][0] = j
+
+  for (let j = 1; j <= len2; j++) {
+    for (let i = 1; i <= len1; i++) {
+      const cost = str1[i - 1] === str2[j - 1] ? 0 : 1
+      matrix[j][i] = Math.min(
+        matrix[j - 1][i] + 1, // deletion
+        matrix[j][i - 1] + 1, // insertion
+        matrix[j - 1][i - 1] + cost, // substitution
+      )
+    }
+  }
+
+  const maxLen = Math.max(len1, len2)
+  return (maxLen - matrix[len2][len1]) / maxLen
+}
+
+// Calculate content similarity using Jaccard similarity
+function calculateContentSimilarity(content1: string, content2: string): number {
+  // Remove common words and split into meaningful tokens
+  const stopWords = new Set([
+    "the",
+    "a",
+    "an",
+    "and",
+    "or",
+    "but",
+    "in",
+    "on",
+    "at",
+    "to",
+    "for",
+    "of",
+    "with",
+    "by",
+    "is",
+    "are",
+    "was",
+    "were",
+    "be",
+    "been",
+    "have",
+    "has",
+    "had",
+    "do",
+    "does",
+    "did",
+    "will",
+    "would",
+    "could",
+    "should",
+  ])
+
+  const getTokens = (text: string) => {
+    return text
+      .replace(/[^\w\s]/g, " ")
+      .split(/\s+/)
+      .filter((word) => word.length > 2 && !stopWords.has(word))
+      .map((word) => word.toLowerCase())
+  }
+
+  const tokens1 = new Set(getTokens(content1))
+  const tokens2 = new Set(getTokens(content2))
+
+  if (tokens1.size === 0 && tokens2.size === 0) return 1
+  if (tokens1.size === 0 || tokens2.size === 0) return 0
+
+  const intersection = new Set([...tokens1].filter((x) => tokens2.has(x)))
+  const union = new Set([...tokens1, ...tokens2])
+
   return intersection.size / union.size
 }

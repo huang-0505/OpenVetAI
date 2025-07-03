@@ -16,6 +16,7 @@ import {
   CheckSquare,
   Eye,
   BarChart3,
+  Sparkles,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -69,6 +70,7 @@ export default function DataIngestionPortal() {
   const [isLoading, setIsLoading] = useState(true)
   const [useLocalStorage, setUseLocalStorage] = useState(false)
   const [activeTab, setActiveTab] = useState("upload")
+  const [autoLabelEnabled, setAutoLabelEnabled] = useState(true)
 
   // New state for multiple file uploads
   const [uploadStatuses, setUploadStatuses] = useState<UploadStatus[]>([])
@@ -239,11 +241,14 @@ export default function DataIngestionPortal() {
       if (statusIndex !== undefined) {
         setUploadStatuses((prev) =>
           prev.map((status, i) =>
-            i === statusIndex ? { ...status, progress: 75, message: "Preparing data for storage..." } : status,
+            i === statusIndex ? { ...status, progress: 75, message: "Auto-assigning labels..." } : status,
           ),
         )
       }
       const processedContent = content.slice(0, 1000) + (content.length > 1000 ? "..." : "")
+
+      // Auto-assign labels if enabled
+      const autoAssignedLabels = autoLabelEnabled && extractedData.suggestedLabels ? extractedData.suggestedLabels : []
 
       // Create unique ID - let Supabase generate UUID for database, use timestamp for local
       const newData: ProcessedData = {
@@ -254,7 +259,7 @@ export default function DataIngestionPortal() {
         original_content: content,
         processed_content: processedContent,
         extracted_data: extractedData,
-        labels: [],
+        labels: autoAssignedLabels,
         status: "ready" as const,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
@@ -296,15 +301,20 @@ export default function DataIngestionPortal() {
       }
 
       if (statusIndex !== undefined) {
+        const labelsMessage =
+          autoAssignedLabels.length > 0
+            ? `Successfully processed! Auto-assigned ${autoAssignedLabels.length} label(s)`
+            : "Successfully processed!"
+
         setUploadStatuses((prev) =>
           prev.map((status, i) =>
-            i === statusIndex
-              ? { ...status, status: "success", progress: 100, message: "Successfully processed!" }
-              : status,
+            i === statusIndex ? { ...status, status: "success", progress: 100, message: labelsMessage } : status,
           ),
         )
       } else {
-        setSuccess(`Successfully processed "${name}"`)
+        const labelsMessage =
+          autoAssignedLabels.length > 0 ? ` (${autoAssignedLabels.length} labels auto-assigned)` : ""
+        setSuccess(`Successfully processed "${name}"${labelsMessage}`)
       }
 
       return true
@@ -373,9 +383,9 @@ export default function DataIngestionPortal() {
           if (file.type === "text/plain" || file.name.endsWith(".txt") || file.name.endsWith(".md")) {
             content = await file.text()
           } else if (file.type === "application/pdf" || file.name.endsWith(".pdf")) {
-            content = `PDF Content from ${file.name}\n\nThis is simulated content extracted from the PDF file. In a real implementation, this would contain the actual text content extracted from the PDF using libraries like pdf-parse or PDF.js.\n\nThe file appears to be a veterinary document based on the filename. The content would include medical terminology, case studies, treatment protocols, and research findings relevant to veterinary medicine.`
+            content = `PDF Content from ${file.name}\n\nThis is simulated content extracted from the PDF file. In a real implementation, this would contain the actual text content extracted from the PDF using libraries like pdf-parse or PDF.js.\n\nThe file appears to be a veterinary document based on the filename. The content would include medical terminology, case studies, treatment protocols, and research findings relevant to veterinary medicine.\n\nVeterinary surgery procedures for small animals including dogs and cats. Clinical diagnosis and treatment protocols for common diseases. Emergency medicine practices in veterinary hospitals. Animal pathology studies and diagnostic procedures.`
           } else {
-            content = `Document Content from ${file.name}\n\nThis is simulated content extracted from the Word document. In a real implementation, this would contain the actual text content extracted from the document using libraries like mammoth.js or docx-parser.\n\nThe document appears to contain veterinary research or clinical information based on the filename.`
+            content = `Document Content from ${file.name}\n\nThis is simulated content extracted from the Word document. In a real implementation, this would contain the actual text content extracted from the document using libraries like mammoth.js or docx-parser.\n\nThe document appears to contain veterinary research or clinical information based on the filename.\n\nClinical study on large animal medicine focusing on cattle and horses. Treatment protocols for infectious diseases in farm animals. Preventive medicine strategies for livestock health management. Veterinary pharmacology research on drug efficacy.`
           }
 
           const name = file.name.replace(/\.[^/.]+$/, "")
@@ -422,15 +432,16 @@ export default function DataIngestionPortal() {
           const errors = currentStatuses.filter((status) => status.status === "error").length
 
           if (successful > 0) {
+            const autoLabelMessage = autoLabelEnabled ? " with auto-assigned labels" : ""
             setSuccess(
-              `Successfully processed ${successful} file(s)${duplicates > 0 ? `, ${duplicates} duplicate(s) skipped` : ""}${errors > 0 ? `, ${errors} error(s)` : ""}`,
+              `Successfully processed ${successful} file(s)${autoLabelMessage}${duplicates > 0 ? `, ${duplicates} duplicate(s) skipped` : ""}${errors > 0 ? `, ${errors} error(s)` : ""}`,
             )
           }
           return currentStatuses
         })
       }, 1000) // Give time for all status updates to complete
     },
-    [processedData, useLocalStorage],
+    [processedData, useLocalStorage, autoLabelEnabled],
   )
 
   const clearUploadStatuses = () => {
@@ -443,7 +454,7 @@ export default function DataIngestionPortal() {
     setIsProcessing(true)
     try {
       const urlName = new URL(url).hostname + new URL(url).pathname.replace(/\//g, "-")
-      const mockContent = `Content scraped from ${url}\n\nThis is simulated scraped content that would be extracted from the provided URL. In a real implementation, this would contain the actual scraped and cleaned text content from the veterinary website or journal.\n\nThe content would include veterinary research, clinical findings, treatment protocols, and other relevant information for training purposes.`
+      const mockContent = `Content scraped from ${url}\n\nThis is simulated scraped content that would be extracted from the provided URL. In a real implementation, this would contain the actual scraped and cleaned text content from the veterinary website or journal.\n\nThe content would include veterinary research, clinical findings, treatment protocols, and other relevant information for training purposes.\n\nVeterinary oncology research on cancer treatment in companion animals. Animal behavior studies and training methodologies. Exotic animal medicine for reptiles and birds. Reproductive medicine and breeding management protocols.`
 
       await processContent(mockContent, urlName, "other", "url")
       setUrl("")
@@ -729,8 +740,18 @@ export default function DataIngestionPortal() {
                 <CardTitle className="flex items-center gap-2">
                   <Upload className="h-5 w-5" />
                   Data Input
+                  <div className="ml-auto flex items-center gap-2">
+                    <Checkbox id="auto-label" checked={autoLabelEnabled} onCheckedChange={setAutoLabelEnabled} />
+                    <Label htmlFor="auto-label" className="text-sm flex items-center gap-1">
+                      <Sparkles className="h-4 w-4" />
+                      Auto-assign labels
+                    </Label>
+                  </div>
                 </CardTitle>
-                <CardDescription>Upload veterinary files or provide URLs to scrape and process content</CardDescription>
+                <CardDescription>
+                  Upload veterinary files or provide URLs to scrape and process content
+                  {autoLabelEnabled && " • Labels will be automatically assigned based on content analysis"}
+                </CardDescription>
               </CardHeader>
               <CardContent>
                 <Tabs defaultValue="upload" className="w-full">
@@ -753,7 +774,10 @@ export default function DataIngestionPortal() {
                       <p className="text-lg font-medium text-gray-900 mb-2">
                         Drop veterinary files here or click to upload
                       </p>
-                      <p className="text-sm text-gray-500">Supports TXT, PDF, DOC files • Multiple files supported</p>
+                      <p className="text-sm text-gray-500">
+                        Supports TXT, PDF, DOC files • Multiple files supported
+                        {autoLabelEnabled && " • Auto-labeling enabled"}
+                      </p>
                       <input
                         id="file-input"
                         type="file"
@@ -962,6 +986,12 @@ export default function DataIngestionPortal() {
                             <Badge {...getQualityBadgeVariant(calculateDocumentQualityScore(data))} className="text-xs">
                               Q: {calculateDocumentQualityScore(data)}%
                             </Badge>
+                            {data.labels.length > 0 && (
+                              <Badge variant="outline" className="text-xs bg-purple-50 border-purple-200">
+                                <Sparkles className="h-3 w-3 mr-1" />
+                                {data.labels.length} labels
+                              </Badge>
+                            )}
                             <span className="text-xs text-gray-500">
                               {new Date(data.created_at).toLocaleDateString()}
                             </span>
@@ -1100,6 +1130,28 @@ export default function DataIngestionPortal() {
                               ))}
                             </div>
                           </div>
+                          {selectedData.extracted_data.suggestedLabels &&
+                            selectedData.extracted_data.suggestedLabels.length > 0 && (
+                              <div>
+                                <Label className="text-sm font-medium flex items-center gap-1">
+                                  <Sparkles className="h-4 w-4" />
+                                  Auto-Suggested Labels
+                                </Label>
+                                <div className="bg-purple-50 p-2 rounded">
+                                  <div className="flex flex-wrap gap-1">
+                                    {selectedData.extracted_data.suggestedLabels.map((label, index) => (
+                                      <Badge
+                                        key={index}
+                                        variant="outline"
+                                        className="text-xs bg-purple-100 border-purple-300"
+                                      >
+                                        {label}
+                                      </Badge>
+                                    ))}
+                                  </div>
+                                </div>
+                              </div>
+                            )}
                         </div>
                       </div>
 

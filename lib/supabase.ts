@@ -17,6 +17,7 @@ export interface ProcessedData {
     summary: string
     keyPoints: string[]
     metadata: Record<string, string>
+    suggestedLabels?: string[]
   }
   labels: string[]
   status: "processing" | "ready" | "approved" | "rejected"
