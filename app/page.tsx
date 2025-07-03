@@ -517,10 +517,6 @@ export default function DataIngestionPortal() {
     [processedData, useLocalStorage],
   )
 
-  const clearUploadStatuses = () => {
-    setUploadStatuses([])
-  }
-
   const handleUrlSubmit = async () => {
     if (!url.trim()) return
 
@@ -676,6 +672,93 @@ export default function DataIngestionPortal() {
   }
 
   const readyFiles = processedData.filter((data) => data.status === "ready")
+
+  const clearProcessedData = async () => {
+    try {
+      if (useLocalStorage) {
+        localStorage.removeItem("processed_data")
+        setProcessedData([])
+      } else {
+        // For database, we'll delete all records (be careful with this in production!)
+        const { error } = await supabase
+          .from("processed_data")
+          .delete()
+          .neq("id", "00000000-0000-0000-0000-000000000000") // Delete all records
+
+        if (error) throw error
+        setProcessedData([])
+      }
+
+      setSelectedData(null)
+      setSelectedFiles(new Set())
+      setSuccess("All processed data cleared successfully")
+    } catch (err) {
+      console.error("Error clearing data:", err)
+      setError("Failed to clear processed data")
+    }
+  }
+
+  const clearUploadStatuses = () => {
+    setUploadStatuses([])
+  }
+
+  const clearSelectedData = async (dataId: string) => {
+    try {
+      if (useLocalStorage) {
+        const updatedData = processedData.filter((data) => data.id !== dataId)
+        setProcessedData(updatedData)
+        saveToLocalStorage(updatedData)
+      } else {
+        const { error } = await supabase.from("processed_data").delete().eq("id", dataId)
+
+        if (error) throw error
+        setProcessedData((prev) => prev.filter((data) => data.id !== dataId))
+      }
+
+      if (selectedData?.id === dataId) {
+        setSelectedData(null)
+      }
+
+      setSelectedFiles((prev) => {
+        const newSet = new Set(prev)
+        newSet.delete(dataId)
+        return newSet
+      })
+
+      setSuccess("Document removed successfully")
+    } catch (err) {
+      console.error("Error removing document:", err)
+      setError("Failed to remove document")
+    }
+  }
+
+  const bulkClearSelected = async () => {
+    if (selectedFiles.size === 0) return
+
+    setIsBulkOperating(true)
+    try {
+      const selectedIds = Array.from(selectedFiles)
+
+      if (useLocalStorage) {
+        const updatedData = processedData.filter((data) => !selectedIds.includes(data.id))
+        setProcessedData(updatedData)
+        saveToLocalStorage(updatedData)
+      } else {
+        const { error } = await supabase.from("processed_data").delete().in("id", selectedIds)
+
+        if (error) throw error
+        setProcessedData((prev) => prev.filter((data) => !selectedIds.includes(data.id)))
+      }
+
+      setSuccess(`Successfully removed ${selectedFiles.size} document(s)`)
+      clearSelection()
+    } catch (err) {
+      console.error("Bulk delete failed:", err)
+      setError("Failed to remove selected documents")
+    } finally {
+      setIsBulkOperating(false)
+    }
+  }
 
   if (isLoading) {
     return (
@@ -907,9 +990,21 @@ export default function DataIngestionPortal() {
                   <CardTitle className="flex items-center gap-2">
                     <Database className="h-5 w-5" />
                     Processed Data ({processedData.length})
-                    <Button variant="outline" size="sm" onClick={loadProcessedData} className="ml-auto bg-transparent">
-                      <RefreshCw className="h-4 w-4" />
-                    </Button>
+                    <div className="ml-auto flex gap-2">
+                      <Button variant="outline" size="sm" onClick={loadProcessedData} className="bg-transparent">
+                        <RefreshCw className="h-4 w-4" />
+                      </Button>
+                      {processedData.length > 0 && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={clearProcessedData}
+                          className="bg-transparent text-red-600 hover:text-red-700"
+                        >
+                          Clear All
+                        </Button>
+                      )}
+                    </div>
                   </CardTitle>
                   {/* Add this after the existing CardTitle and before the multi-select controls */}
                   <div className="flex items-center gap-2 pt-2">
@@ -963,22 +1058,29 @@ export default function DataIngestionPortal() {
                         const score =
                           data.quality_score ||
                           calculateQualityScore(data.original_content, data.extracted_data, data.labels)
+                        if (qualityFilter === "excellent") return score >= 80
+                        if (qualityFilter === "good") return score >= 60 && score < 80
+                        if (qualityFilter === "fair") return score >= 40 && score < 60
+                        if (qualityFilter === "poor") return score < 40
+                        return true
                       })
                       .map((data) => (
                         <div
                           key={data.id}
                           className={`p-3 rounded-md border ${selectedData?.id === data.id ? "border-blue-500" : "border-gray-200"} ${
                             selectedFiles.has(data.id) ? "bg-blue-50" : ""
-                          } hover:bg-gray-50 cursor-pointer flex items-center justify-between`}
-                          onClick={() => {
-                            if (isMultiSelectMode) {
-                              toggleFileSelection(data.id)
-                            } else {
-                              setSelectedData(data)
-                            }
-                          }}
+                          } hover:bg-gray-50 cursor-pointer flex items-center justify-between group`}
                         >
-                          <div className="flex items-center">
+                          <div
+                            className="flex items-center flex-1"
+                            onClick={() => {
+                              if (isMultiSelectMode) {
+                                toggleFileSelection(data.id)
+                              } else {
+                                setSelectedData(data)
+                              }
+                            }}
+                          >
                             {isMultiSelectMode && (
                               <Checkbox
                                 checked={selectedFiles.has(data.id)}
@@ -986,19 +1088,32 @@ export default function DataIngestionPortal() {
                                 className="mr-2"
                               />
                             )}
-                            <div className="truncate">
+                            <div className="truncate flex-1">
                               <p className="font-semibold text-sm">{data.name}</p>
                               <p className="text-xs text-gray-500">
                                 {data.type} • {data.source}
                               </p>
                             </div>
                           </div>
-                          <Badge
-                            variant={getQualityBadge(data.quality_score || 0).variant}
-                            className={getQualityBadge(data.quality_score || 0).color}
-                          >
-                            {getQualityBadge(data.quality_score || 0).label}
-                          </Badge>
+                          <div className="flex items-center gap-2">
+                            <Badge
+                              variant={getQualityBadge(data.quality_score || 0).variant}
+                              className={getQualityBadge(data.quality_score || 0).color}
+                            >
+                              {getQualityBadge(data.quality_score || 0).label}
+                            </Badge>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                clearSelectedData(data.id)
+                              }}
+                              className="opacity-0 group-hover:opacity-100 transition-opacity text-red-600 hover:text-red-700 hover:bg-red-50"
+                            >
+                              <X className="h-4 w-4" />
+                            </Button>
+                          </div>
                         </div>
                       ))}
                   </div>
@@ -1124,24 +1239,28 @@ export default function DataIngestionPortal() {
                       <Button variant="outline" disabled={isBulkOperating} onClick={() => bulkUpdateStatus("rejected")}>
                         Reject
                       </Button>
+                      <Button
+                        variant="outline"
+                        disabled={isBulkOperating}
+                        onClick={bulkClearSelected}
+                        className="text-red-600 hover:text-red-700 hover:bg-red-50 bg-transparent"
+                      >
+                        Delete Selected
+                      </Button>
                     </div>
                   </div>
 
                   <div>
                     <Label className="block pb-2">Update Labels</Label>
                     <div className="flex flex-wrap gap-2">
-                      {PREDEFINED_LABELS.map((label) => (
+                      {PREDEFINED_LABELS.slice(0, 6).map((label) => (
                         <Button
                           key={label}
                           variant="outline"
                           size="sm"
                           disabled={isBulkOperating}
                           onClick={() => {
-                            bulkUpdateLabels(
-                              processedData[0].labels.includes(label)
-                                ? processedData[0].labels.filter((l) => l !== label)
-                                : [...processedData[0].labels, label],
-                            )
+                            bulkUpdateLabels([label])
                           }}
                         >
                           {label}
