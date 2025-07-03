@@ -51,6 +51,19 @@ export function DataQualityMetrics() {
   const [issues, setIssues] = useState<QualityIssue[]>([])
   const [isLoading, setIsLoading] = useState(false)
   const [useLocalStorage, setUseLocalStorage] = useState(false)
+  const [detailedAnalysis, setDetailedAnalysis] = useState<
+    Array<{
+      id: string
+      name: string
+      qualityScore: number
+      issues: string[]
+      strengths: string[]
+    }>
+  >([])
+  const [showDetailedView, setShowDetailedView] = useState(false)
+  const [selectedQualityFilter, setSelectedQualityFilter] = useState<"all" | "excellent" | "good" | "fair" | "poor">(
+    "all",
+  )
 
   const calculateQualityScore = (content: string, extractedData: any, labels: string[]): number => {
     let score = 0
@@ -81,6 +94,86 @@ export function DataQualityMetrics() {
     score += Math.min(relevantTerms.length * 3, 20)
 
     return Math.min(score, 100)
+  }
+
+  const analyzeDocumentQuality = (doc: ProcessedData) => {
+    let score = 0
+    const issues: string[] = []
+    const strengths: string[] = []
+
+    // Content length analysis
+    const contentLength = doc.original_content.length
+    if (contentLength > 2000) {
+      score += 30
+      strengths.push("Comprehensive content length")
+    } else if (contentLength > 1000) {
+      score += 20
+      strengths.push("Good content length")
+    } else if (contentLength > 500) {
+      issues.push("Content could be more detailed")
+    } else if (contentLength > 200) {
+      issues.push("Short content - needs more detail")
+    } else {
+      score += 5
+      issues.push("Very short content - insufficient detail")
+    }
+
+    // Extracted data quality
+    if (doc.extracted_data.title && doc.extracted_data.title.length > 10) {
+      score += 10
+      strengths.push("Well-structured title")
+    } else {
+      issues.push("Title needs improvement")
+    }
+
+    if (doc.extracted_data.summary && doc.extracted_data.summary.length > 50) {
+      score += 10
+      strengths.push("Comprehensive summary")
+    } else {
+      issues.push("Summary needs to be more detailed")
+    }
+
+    if (doc.extracted_data.keyPoints && doc.extracted_data.keyPoints.length >= 3) {
+      score += 10
+      strengths.push("Good key points extraction")
+    } else {
+      issues.push("Needs more key points identified")
+    }
+
+    // Labels analysis
+    if (doc.labels.length >= 3) {
+      score += 20
+      strengths.push("Well-categorized with multiple labels")
+    } else if (doc.labels.length >= 2) {
+      strengths.push("Good categorization")
+    } else if (doc.labels.length >= 1) {
+      issues.push("Could benefit from additional labels")
+    } else {
+      issues.push("Missing veterinary labels - needs categorization")
+    }
+
+    // Veterinary relevance
+    const vetTerms = ["veterinary", "animal", "clinical", "diagnosis", "treatment", "therapy", "pathology"]
+    const lowerContent = doc.original_content.toLowerCase()
+    const relevantTerms = vetTerms.filter((term) => lowerContent.includes(term))
+    const relevanceScore = Math.min(relevantTerms.length * 3, 20)
+    score += relevanceScore
+
+    if (relevanceScore >= 15) {
+      strengths.push("Highly relevant veterinary content")
+    } else if (relevanceScore >= 10) {
+      strengths.push("Good veterinary relevance")
+    } else if (relevanceScore >= 5) {
+      issues.push("Limited veterinary terminology - verify relevance")
+    } else {
+      issues.push("Low veterinary relevance - may not be suitable")
+    }
+
+    return {
+      score: Math.min(score, 100),
+      issues,
+      strengths,
+    }
   }
 
   const analyzeData = async () => {
@@ -119,9 +212,22 @@ export function DataQualityMetrics() {
       }
 
       // Calculate quality scores for each document
-      const qualityScores = data.map((doc) =>
-        calculateQualityScore(doc.original_content, doc.extracted_data, doc.labels),
-      )
+      // const qualityScores = data.map((doc) =>
+      //   calculateQualityScore(doc.original_content, doc.extracted_data, doc.labels),
+      // )
+      const detailedResults = data.map((doc) => {
+        const analysis = analyzeDocumentQuality(doc)
+        return {
+          id: doc.id,
+          name: doc.name,
+          qualityScore: analysis.score,
+          issues: analysis.issues,
+          strengths: analysis.strengths,
+        }
+      })
+
+      setDetailedAnalysis(detailedResults)
+      const qualityScores = detailedResults.map((result) => result.qualityScore)
 
       // Calculate metrics
       const totalDocuments = data.length
@@ -265,6 +371,18 @@ export function DataQualityMetrics() {
     if (score >= 60) return { variant: "secondary" as const, label: "Good" }
     if (score >= 40) return { variant: "outline" as const, label: "Fair" }
     return { variant: "destructive" as const, label: "Needs Work" }
+  }
+
+  const getFilteredDocuments = () => {
+    if (selectedQualityFilter === "all") return detailedAnalysis
+
+    return detailedAnalysis.filter((doc) => {
+      if (selectedQualityFilter === "excellent") return doc.qualityScore >= 80
+      if (selectedQualityFilter === "good") return doc.qualityScore >= 60 && doc.qualityScore < 80
+      if (selectedQualityFilter === "fair") return doc.qualityScore >= 40 && doc.qualityScore < 60
+      if (selectedQualityFilter === "poor") return doc.qualityScore < 40
+      return true
+    })
   }
 
   return (
@@ -561,6 +679,124 @@ export function DataQualityMetrics() {
           </Card>
         </div>
       )}
+
+      {/* Document Quality Analysis */}
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="flex items-center gap-2">
+            <FileText className="h-5 w-5" />
+            Document Quality Analysis
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowDetailedView(!showDetailedView)}
+              className="ml-auto"
+            >
+              {showDetailedView ? "Hide Details" : "Show Details"}
+            </Button>
+          </CardTitle>
+          <CardDescription>Individual document quality scores and recommendations</CardDescription>
+        </CardHeader>
+        <CardContent>
+          {showDetailedView && (
+            <div className="space-y-4">
+              {/* Quality Filter */}
+              <div className="flex gap-2 flex-wrap">
+                <Button
+                  variant={selectedQualityFilter === "all" ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setSelectedQualityFilter("all")}
+                >
+                  All ({detailedAnalysis.length})
+                </Button>
+                <Button
+                  variant={selectedQualityFilter === "excellent" ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setSelectedQualityFilter("excellent")}
+                  className="text-green-600 border-green-200"
+                >
+                  Excellent ({detailedAnalysis.filter((d) => d.qualityScore >= 80).length})
+                </Button>
+                <Button
+                  variant={selectedQualityFilter === "good" ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setSelectedQualityFilter("good")}
+                  className="text-yellow-600 border-yellow-200"
+                >
+                  Good ({detailedAnalysis.filter((d) => d.qualityScore >= 60 && d.qualityScore < 80).length})
+                </Button>
+                <Button
+                  variant={selectedQualityFilter === "fair" ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setSelectedQualityFilter("fair")}
+                  className="text-orange-600 border-orange-200"
+                >
+                  Fair ({detailedAnalysis.filter((d) => d.qualityScore >= 40 && d.qualityScore < 60).length})
+                </Button>
+                <Button
+                  variant={selectedQualityFilter === "poor" ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setSelectedQualityFilter("poor")}
+                  className="text-red-600 border-red-200"
+                >
+                  Poor ({detailedAnalysis.filter((d) => d.qualityScore < 40).length})
+                </Button>
+              </div>
+
+              {/* Document List */}
+              <div className="space-y-3 max-h-96 overflow-y-auto">
+                {getFilteredDocuments().map((doc) => (
+                  <div key={doc.id} className="border rounded-lg p-4 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <span className="font-medium truncate">{doc.name}</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Badge {...getQualityBadge(doc.qualityScore)}>{doc.qualityScore}%</Badge>
+                      </div>
+                    </div>
+
+                    <Progress value={doc.qualityScore} className="h-2" />
+
+                    {doc.strengths.length > 0 && (
+                      <div>
+                        <h4 className="text-sm font-medium text-green-700 mb-1">✓ Strengths</h4>
+                        <ul className="text-xs text-green-600 space-y-1">
+                          {doc.strengths.map((strength, index) => (
+                            <li key={index}>• {strength}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+
+                    {doc.issues.length > 0 && (
+                      <div>
+                        <h4 className="text-sm font-medium text-red-700 mb-1">⚠ Areas for Improvement</h4>
+                        <ul className="text-xs text-red-600 space-y-1">
+                          {doc.issues.map((issue, index) => (
+                            <li key={index}>• {issue}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                  </div>
+                ))}
+
+                {getFilteredDocuments().length === 0 && (
+                  <div className="text-center py-8 text-gray-500">No documents match the selected quality filter</div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {!showDetailedView && metrics && (
+            <div className="text-center py-8">
+              <BarChart3 className="h-8 w-8 text-gray-400 mx-auto mb-2" />
+              <p className="text-sm text-gray-500">Click "Show Details" to see individual document analysis</p>
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       {!metrics && !isLoading && (
         <Card>

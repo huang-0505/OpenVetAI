@@ -593,6 +593,44 @@ export default function DataIngestionPortal() {
 
   const readyFiles = processedData.filter((data) => data.status === "ready")
 
+  // Add this helper function after the existing helper functions
+  const calculateDocumentQualityScore = (doc: ProcessedData): number => {
+    let score = 0
+
+    // Content length (0-30 points)
+    const contentLength = doc.original_content.length
+    if (contentLength > 2000) score += 30
+    else if (contentLength > 1000) score += 20
+    else if (contentLength > 500) score += 15
+    else if (contentLength > 200) score += 10
+    else score += 5
+
+    // Extracted data quality (0-30 points)
+    if (doc.extracted_data.title && doc.extracted_data.title.length > 10) score += 10
+    if (doc.extracted_data.summary && doc.extracted_data.summary.length > 50) score += 10
+    if (doc.extracted_data.keyPoints && doc.extracted_data.keyPoints.length >= 3) score += 10
+
+    // Labels (0-20 points)
+    if (doc.labels.length >= 3) score += 20
+    else if (doc.labels.length >= 2) score += 15
+    else if (doc.labels.length >= 1) score += 10
+
+    // Veterinary relevance (0-20 points)
+    const vetTerms = ["veterinary", "animal", "clinical", "diagnosis", "treatment", "therapy", "pathology"]
+    const lowerContent = doc.original_content.toLowerCase()
+    const relevantTerms = vetTerms.filter((term) => lowerContent.includes(term))
+    score += Math.min(relevantTerms.length * 3, 20)
+
+    return Math.min(score, 100)
+  }
+
+  const getQualityBadgeVariant = (score: number) => {
+    if (score >= 80) return { variant: "default" as const, color: "text-green-600" }
+    if (score >= 60) return { variant: "secondary" as const, color: "text-yellow-600" }
+    if (score >= 40) return { variant: "outline" as const, color: "text-orange-600" }
+    return { variant: "destructive" as const, color: "text-red-600" }
+  }
+
   if (isLoading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -608,7 +646,7 @@ export default function DataIngestionPortal() {
     <div className="min-h-screen bg-gray-50 p-4">
       <div className="max-w-7xl mx-auto">
         <div className="mb-6">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">Vet Data Ingestion Portal</h1>
+          <h1 className="text-3xl font-bold text-gray-900 mb-2">Veterinary Data Ingestion Portal</h1>
           <div className="flex items-center justify-between">
             <p className="text-gray-600">
               Upload veterinary journals and research papers to process and prepare data for training
@@ -920,6 +958,9 @@ export default function DataIngestionPortal() {
                             </Badge>
                             <Badge variant="outline" className="text-xs">
                               {data.source}
+                            </Badge>
+                            <Badge {...getQualityBadgeVariant(calculateDocumentQualityScore(data))} className="text-xs">
+                              Q: {calculateDocumentQualityScore(data)}%
                             </Badge>
                             <span className="text-xs text-gray-500">
                               {new Date(data.created_at).toLocaleDateString()}
