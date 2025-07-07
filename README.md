@@ -43,7 +43,7 @@ The **Vet Data Ingestion Portal** is a full-stack application designed to stream
 
 ---
 
-##🧪 Planned Enhancements
+## 🧪 Planned Enhancements
 📈 Better Quality metrics and readability scoring
 
 🔍 NER pre-labeling and structured extraction
@@ -57,6 +57,6 @@ The **Vet Data Ingestion Portal** is a full-stack application designed to stream
 🧬 Model training trigger with version tracking
 
 
-##🙌 Acknowledgments
+## 🙌 Acknowledgments
 This portal is part of a broader effort to develop VetLLM — a domain-specific language model fine-tuned on veterinary literature. We welcome contributions from researchers, veterinarians, and open-source developers.
 
