@@ -39,7 +39,7 @@ The **Vet Data Ingestion Portal** is a full-stack application designed to stream
 
 | Frontend         | Backend           | Database       | Hosting      |
 |------------------|-------------------|----------------|--------------|
-| Next.js + Tailwind CSS | Node.js / API Routes | Supabase       | Vercel       |
+| V0 + Next.js + Tailwind CSS | Node.js / API Routes | Supabase       | Vercel       |
 
 ---
 
