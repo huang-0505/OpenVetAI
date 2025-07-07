@@ -43,10 +43,20 @@ The **Vet Data Ingestion Portal** is a full-stack application designed to stream
 
 ---
 
-## 🧑‍💻 Local Development
+🧪 Planned Enhancements
+📈 Better Quality metrics and readability scoring
 
-### 1. Clone the repo
+🔍 NER pre-labeling and structured extraction
 
-```bash
-git clone https://github.com/yourusername/vet-data-ingestion-portal.git
-cd vet-data-ingestion-portal
+✍️ Manual annotation interface for diseases, drugs, species, etc.
+
+🤖 Background preprocessing pipeline (PDF-to-text, OCR, cleaning)
+
+🔗 Integration with LangChain & vector DB for embedding injection
+
+🧬 Model training trigger with version tracking
+
+
+🙌 Acknowledgments
+This portal is part of a broader effort to develop VetLLM — a domain-specific language model fine-tuned on veterinary literature. We welcome contributions from researchers, veterinarians, and open-source developers.
+
