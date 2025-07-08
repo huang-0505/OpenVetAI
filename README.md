@@ -1,4 +1,4 @@
-# 🐾 Vet Data Ingestion Portal
+# 🐾 OpenVetAI
 
 The **Vet Data Ingestion Portal** is a full-stack application designed to streamline the ingestion and curation of veterinary journals and research papers. This portal enables researchers and contributors to upload, review, and approve text data for training a domain-specific veterinary Large Language Model (VetLLM).
 
