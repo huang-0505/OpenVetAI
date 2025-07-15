@@ -8,7 +8,7 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey)
 export interface ProcessedData {
   id: string
   name: string
-  type: "veterinary-journal" | "clinical-study" | "case-report" | "research-paper" | "other"
+  type: "research-paper" | "clinical-study" | "case-report" | "veterinary-journal" | "other"
   source: "upload" | "url"
   original_content: string
   processed_content: string
@@ -19,8 +19,9 @@ export interface ProcessedData {
     metadata: Record<string, string>
   }
   labels: string[]
-  status: "processing" | "ready" | "approved" | "rejected"
-  quality_score: number
+  status: "ready" | "approved" | "rejected" | "processing"
   created_at: string
   updated_at: string
+  quality_score?: number
+  user_id?: string // Added this field
 }

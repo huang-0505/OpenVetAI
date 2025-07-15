@@ -114,3 +114,6 @@ function extractKeyTerms(content: string): string[] {
   const lowerContent = content.toLowerCase()
   return vetTerms.filter((term) => lowerContent.includes(term))
 }
+
+// Alias so other modules can import the same logic with a clearer name
+export const processWithAI = processVeterinaryContent

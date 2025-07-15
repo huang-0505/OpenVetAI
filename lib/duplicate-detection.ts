@@ -133,3 +133,52 @@ function calculateSimilarity(text1: string, text2: string): number {
   // Calculate Jaccard similarity
   return intersection.size / union.size
 }
+
+// -----------------------------------------------------------------------------
+// Simple helper used by the client-side UI
+// -----------------------------------------------------------------------------
+// Accepts any objects that at least expose a `name` (string) and optional
+// `content` (string). Returns a very lightweight duplicate report so that the
+// UI does not have to know about the richer DuplicateCheckResult interface.
+
+export interface SimpleDuplicateResult {
+  isDuplicate: boolean
+  duplicateOf?: string
+}
+
+/**
+ * Extremely fast duplicate detector for the upload wizard.
+ * 1. Case-insensitive filename match (exact)
+ * 2. VERY cheap content check (first 1 kB Jaccard similarity ≥ 0.9)
+ *
+ * NOTE: For deeper / asynchronous checks the UI already calls the
+ *       `customDuplicateCheck` server-side.  This helper prevents the
+ *       “duplicate” badge from crashing the page during optimistic UI updates.
+ */
+export function detectDuplicates<T extends { name: string; content?: string }>(
+  file: T,
+  existing: T[],
+  contentThreshold = 0.9,
+): SimpleDuplicateResult {
+  // ---- 1️⃣  filename --------------------------------------------------------
+  const fn = file.name.toLowerCase().trim()
+  const byName = existing.find((f) => f.name.toLowerCase().trim() === fn)
+  if (byName) {
+    return { isDuplicate: true, duplicateOf: byName.name }
+  }
+
+  // ---- 2️⃣  cheap content similarity ---------------------------------------
+  if (file.content) {
+    const sample = file.content.slice(0, 1024).toLowerCase()
+    for (const ex of existing) {
+      if (!ex.content) continue
+      const other = ex.content.slice(0, 1024).toLowerCase()
+      const similarity = calculateSimilarity(sample, other)
+      if (similarity >= contentThreshold) {
+        return { isDuplicate: true, duplicateOf: ex.name }
+      }
+    }
+  }
+
+  return { isDuplicate: false }
+}
