@@ -10,7 +10,18 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Upload, Database, Settings, FileText, BarChart3, Users } from "lucide-react"
-import { useUser } from "@clerk/nextjs"
+
+// Dynamically import Clerk hooks to avoid SSR issues
+let useUser: any = null
+let useClerk: any = null
+
+try {
+  const clerkModule = require("@clerk/nextjs")
+  useUser = clerkModule.useUser
+  useClerk = clerkModule.useClerk
+} catch (error) {
+  console.warn("Clerk not available:", error)
+}
 
 function LoadingSpinner() {
   return (
@@ -39,12 +50,19 @@ function SignInPrompt() {
 }
 
 export default function DataIngestionPortal() {
-  const { user, isLoaded } = useUser()
   const [mounted, setMounted] = useState(false)
+  const [user, setUser] = useState(null)
+  const [isLoaded, setIsLoaded] = useState(false)
+
+  // Use Clerk hooks at the top level
+  const clerkUser = useUser ? useUser().user : null
+  const clerkIsLoaded = useUser ? useUser().isLoaded : true
 
   useEffect(() => {
     setMounted(true)
-  }, [])
+    setUser(clerkUser)
+    setIsLoaded(clerkIsLoaded)
+  }, [clerkUser, clerkIsLoaded])
 
   // Prevent hydration mismatch by not rendering until mounted
   if (!mounted) {
@@ -56,12 +74,12 @@ export default function DataIngestionPortal() {
     return <LoadingSpinner />
   }
 
-  // Show sign-in prompt if not authenticated
-  if (!user) {
+  // Show sign-in prompt if Clerk is available but user is not authenticated
+  if (useUser && !user) {
     return <SignInPrompt />
   }
 
-  // Main portal content for authenticated users
+  // Main portal content
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
@@ -73,9 +91,11 @@ export default function DataIngestionPortal() {
               <h1 className="text-xl font-semibold text-gray-900">Data Ingestion Portal</h1>
             </div>
             <div className="flex items-center space-x-4">
-              <span className="text-sm text-gray-600">
-                Welcome, {user.fullName || user.emailAddresses[0]?.emailAddress}
-              </span>
+              {user && (
+                <span className="text-sm text-gray-600">
+                  Welcome, {user.fullName || user.emailAddresses?.[0]?.emailAddress || "User"}
+                </span>
+              )}
               <UserMenu />
             </div>
           </div>
