@@ -1,18 +1,8 @@
-import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server"
+import { clerkMiddleware } from "@clerk/nextjs/server"
 
-const isProtectedRoute = createRouteMatcher(["/", "/settings(.*)", "/debug(.*)"])
-
-export default clerkMiddleware(async (auth, req) => {
-  try {
-    if (isProtectedRoute(req)) {
-      await auth.protect()
-    }
-  } catch (error) {
-    console.error("Middleware error:", error)
-    // Allow the request to continue even if auth fails
-    // The client-side components will handle the redirect
-  }
-})
+// Simplified middleware that doesn't enforce authentication
+// Let client-side components handle auth redirects
+export default clerkMiddleware()
 
 export const config = {
   matcher: [
