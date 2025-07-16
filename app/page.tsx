@@ -1,15 +1,55 @@
 "use client"
 
-import { useSession } from "next-auth/react"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Upload, Database, Settings, FileText, BarChart3, Users } from "lucide-react"
+import { auth } from "@clerk/nextjs/server"
+import { redirect } from "next/navigation"
 import { DataViewer } from "@/components/data-viewer"
 import { DatabaseStatus } from "@/components/database-status"
 import { DataQualityMetrics } from "@/components/data-quality-metrics"
 import { UserMenu } from "@/components/user-menu"
 import Link from "next/link"
+import { Button } from "@/components/ui/button"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Upload, Database, Settings, FileText, BarChart3, Users } from "lucide-react"
+import { useUser } from "@clerk/nextjs" // Import useUser hook
+
+async function Home() {
+  const { userId } = await auth()
+
+  if (!userId) {
+    redirect("/sign-in")
+  }
+
+  return (
+    <div className="min-h-screen bg-gray-50">
+      <header className="bg-white shadow-sm border-b">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex justify-between items-center h-16">
+            <div className="flex items-center">
+              <h1 className="text-xl font-semibold text-gray-900">Data Ingestion Portal</h1>
+            </div>
+            <UserMenu />
+          </div>
+        </div>
+      </header>
+
+      <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
+        <div className="px-4 py-6 sm:px-0">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+            <div className="lg:col-span-2">
+              <DataQualityMetrics />
+            </div>
+            <div>
+              <DatabaseStatus />
+            </div>
+          </div>
+
+          <DataViewer />
+        </div>
+      </main>
+    </div>
+  )
+}
 
 function LoadingSpinner() {
   return (
@@ -28,7 +68,7 @@ function SignInPrompt() {
           <CardDescription>Please sign in to continue</CardDescription>
         </CardHeader>
         <CardContent className="text-center">
-          <Link href="/auth/signin">
+          <Link href="/sign-in">
             <Button className="w-full">Sign In</Button>
           </Link>
         </CardContent>
@@ -38,15 +78,15 @@ function SignInPrompt() {
 }
 
 export default function DataIngestionPortal() {
-  const { data: session, status } = useSession()
+  const { user, isLoaded } = useUser() // Declare useUser hook
 
   // Show loading spinner while checking authentication
-  if (status === "loading") {
+  if (!isLoaded) {
     return <LoadingSpinner />
   }
 
   // Show sign-in prompt if not authenticated
-  if (status === "unauthenticated" || !session?.user) {
+  if (!user) {
     return <SignInPrompt />
   }
 
@@ -62,7 +102,9 @@ export default function DataIngestionPortal() {
               <h1 className="text-xl font-semibold text-gray-900">Data Ingestion Portal</h1>
             </div>
             <div className="flex items-center space-x-4">
-              <span className="text-sm text-gray-600">Welcome, {session.user.name || session.user.email}</span>
+              <span className="text-sm text-gray-600">
+                Welcome, {user.fullName || user.emailAddresses[0]?.emailAddress}
+              </span>
               <UserMenu />
             </div>
           </div>
