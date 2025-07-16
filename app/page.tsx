@@ -1,5 +1,6 @@
 "use client"
 
+import { useEffect, useState } from "react"
 import { DataViewer } from "@/components/data-viewer"
 import { DatabaseStatus } from "@/components/database-status"
 import { DataQualityMetrics } from "@/components/data-quality-metrics"
@@ -13,7 +14,7 @@ import { useUser } from "@clerk/nextjs"
 
 function LoadingSpinner() {
   return (
-    <div className="min-h-screen flex items-center justify-center">
+    <div className="min-h-screen flex items-center justify-center bg-gray-50">
       <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
     </div>
   )
@@ -39,6 +40,16 @@ function SignInPrompt() {
 
 export default function DataIngestionPortal() {
   const { user, isLoaded } = useUser()
+  const [mounted, setMounted] = useState(false)
+
+  useEffect(() => {
+    setMounted(true)
+  }, [])
+
+  // Prevent hydration mismatch by not rendering until mounted
+  if (!mounted) {
+    return <LoadingSpinner />
+  }
 
   // Show loading spinner while checking authentication
   if (!isLoaded) {
