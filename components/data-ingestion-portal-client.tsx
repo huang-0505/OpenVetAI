@@ -1,7 +1,6 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import Link from "next/link"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -10,18 +9,6 @@ import { Upload, Database, Settings, FileText, BarChart3, Users } from "lucide-r
 import { DataViewer } from "@/components/data-viewer"
 import { DatabaseStatus } from "@/components/database-status"
 import { DataQualityMetrics } from "@/components/data-quality-metrics"
-import { UserMenu } from "@/components/user-menu"
-
-// ——————————————————————————————————————————
-// Optional Clerk dynamic import (no-SSR safe)
-let useUser: any = null
-try {
-  // eslint-disable-next-line @typescript-eslint/no-var-requires -- dynamic import
-  const clerkModule = require("@clerk/nextjs")
-  useUser = clerkModule.useUser
-} catch {
-  // Clerk not installed / not configured – continue gracefully
-}
 
 function LoadingSpinner() {
   return (
@@ -31,39 +18,27 @@ function LoadingSpinner() {
   )
 }
 
-function SignInPrompt() {
+function SimpleUserMenu() {
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50">
-      <Card className="w-full max-w-md">
-        <CardHeader className="text-center">
-          <CardTitle>Welcome to Data Ingestion Portal</CardTitle>
-          <CardDescription>Please sign in to continue</CardDescription>
-        </CardHeader>
-        <CardContent className="text-center">
-          <Link href="/sign-in">
-            <Button className="w-full">Sign In</Button>
-          </Link>
-        </CardContent>
-      </Card>
+    <div className="flex items-center space-x-4">
+      <span className="text-sm text-gray-600">Guest User</span>
+      <Button variant="outline" size="sm">
+        Sign In
+      </Button>
     </div>
   )
 }
 
 export default function DataIngestionPortal() {
   const [mounted, setMounted] = useState(false)
-  const [user, setUser] = useState<any>(null)
-  const [isLoaded, setIsLoaded] = useState(false)
-  const clerkCtx = useUser ? useUser() : { user: null, isLoaded: true }
 
   useEffect(() => {
     setMounted(true)
-    setUser(clerkCtx.user)
-    setIsLoaded(clerkCtx.isLoaded)
-  }, [clerkCtx])
+  }, [])
 
-  if (!mounted) return <LoadingSpinner />
-  if (!isLoaded) return <LoadingSpinner />
-  if (useUser && !user) return <SignInPrompt />
+  if (!mounted) {
+    return <LoadingSpinner />
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -75,14 +50,7 @@ export default function DataIngestionPortal() {
               <Database className="h-8 w-8 text-blue-600 mr-3" />
               <h1 className="text-xl font-semibold text-gray-900">Data Ingestion Portal</h1>
             </div>
-            <div className="flex items-center space-x-4">
-              {user && (
-                <span className="text-sm text-gray-600">
-                  Welcome, {user.fullName || user.emailAddresses?.[0]?.emailAddress || "User"}
-                </span>
-              )}
-              <UserMenu />
-            </div>
+            <SimpleUserMenu />
           </div>
         </div>
       </header>
@@ -182,9 +150,10 @@ export default function DataIngestionPortal() {
                   <CardDescription>Configure how your data is processed and stored</CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <Link href="/settings">
-                    <Button>Open Settings</Button>
-                  </Link>
+                  <div className="space-y-4">
+                    <p className="text-sm text-gray-600">Configure your data processing settings and integrations.</p>
+                    <Button variant="outline">Configure Settings</Button>
+                  </div>
                 </CardContent>
               </Card>
             </div>
