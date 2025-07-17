@@ -9,22 +9,12 @@ import { Upload, Database, Settings, FileText, BarChart3, Users } from "lucide-r
 import { DataViewer } from "@/components/data-viewer"
 import { DatabaseStatus } from "@/components/database-status"
 import { DataQualityMetrics } from "@/components/data-quality-metrics"
+import { UserMenu } from "@/components/user-menu"
 
 function LoadingSpinner() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50">
       <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-    </div>
-  )
-}
-
-function SimpleUserMenu() {
-  return (
-    <div className="flex items-center space-x-4">
-      <span className="text-sm text-gray-600">Guest User</span>
-      <Button variant="outline" size="sm">
-        Sign In
-      </Button>
     </div>
   )
 }
@@ -50,7 +40,7 @@ export default function DataIngestionPortal() {
               <Database className="h-8 w-8 text-blue-600 mr-3" />
               <h1 className="text-xl font-semibold text-gray-900">Data Ingestion Portal</h1>
             </div>
-            <SimpleUserMenu />
+            <UserMenu />
           </div>
         </div>
       </header>

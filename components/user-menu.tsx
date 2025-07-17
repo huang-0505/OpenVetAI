@@ -15,8 +15,16 @@ import { Settings, LogOut } from "lucide-react"
 import Link from "next/link"
 
 export function UserMenu() {
-  const { user } = useUser()
+  const { user, isLoaded } = useUser()
   const { signOut } = useClerk()
+
+  if (!isLoaded) {
+    return (
+      <div className="flex items-center space-x-4">
+        <div className="h-8 w-8 rounded-full bg-gray-200 animate-pulse" />
+      </div>
+    )
+  }
 
   if (!user) {
     return (
