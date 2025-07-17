@@ -1,8 +1,7 @@
-// app/page.tsx – Server Component
-import PageClient from "./page-client"
+export const dynamic = "force-dynamic"
 
-export const dynamic = "force-dynamic" // opt-out of static export
+import { DataIngestionPortalClient } from "@/components/data-ingestion-portal-client"
 
 export default function Page() {
-  return <PageClient />
+  return <DataIngestionPortalClient />
 }
