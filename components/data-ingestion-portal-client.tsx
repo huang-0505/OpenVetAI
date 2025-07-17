@@ -25,8 +25,11 @@ import {
   List,
   Sliders,
   HardDrive,
-  SwitchCameraIcon as Switch,
   Badge,
+  Shield,
+  UserCheck,
+  UserX,
+  Lock,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -40,25 +43,19 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { Slider } from "@/components/ui/slider"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog"
-import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import { Switch } from "@/components/ui/switch"
 import { useToast } from "@/hooks/use-toast"
 import { DataViewer } from "./data-viewer"
 import { DatabaseStatus } from "./database-status"
 import { DataQualityMetrics } from "./data-quality-metrics"
 import { UserMenu } from "./user-menu"
+import { useUserRole } from "@/lib/auth-utils"
 
 // Mock data for demonstration
 const mockFiles = [
@@ -72,50 +69,60 @@ const mockFiles = [
     records: 1250,
     duplicates: 23,
     qualityScore: 92,
+    needsReview: false,
+    uploadedBy: "john@example.com",
   },
   {
     id: 2,
-    name: "inventory.xlsx",
+    name: "research_paper_001.pdf",
     size: "5.7 MB",
-    status: "processing",
+    status: "pending_review",
     uploadDate: "2024-01-15",
-    type: "Excel",
-    records: 3400,
+    type: "PDF",
+    records: 1,
     duplicates: 0,
     qualityScore: 88,
+    needsReview: true,
+    uploadedBy: "researcher@university.edu",
   },
   {
     id: 3,
-    name: "sales_report.json",
+    name: "clinical_study.json",
     size: "1.1 MB",
-    status: "failed",
+    status: "rejected",
     uploadDate: "2024-01-14",
     type: "JSON",
     records: 890,
     duplicates: 12,
     qualityScore: 76,
+    needsReview: false,
+    uploadedBy: "clinic@hospital.com",
   },
   {
     id: 4,
-    name: "user_profiles.xml",
+    name: "veterinary_journal.xml",
     size: "3.2 MB",
-    status: "processed",
+    status: "approved",
     uploadDate: "2024-01-14",
     type: "XML",
     records: 2100,
     duplicates: 45,
     qualityScore: 94,
+    needsReview: false,
+    uploadedBy: "vet@clinic.com",
   },
   {
     id: 5,
-    name: "transaction_log.txt",
+    name: "case_report.txt",
     size: "8.9 MB",
-    status: "queued",
+    status: "processing",
     uploadDate: "2024-01-13",
     type: "Text",
     records: 0,
     duplicates: 0,
     qualityScore: 0,
+    needsReview: false,
+    uploadedBy: "doctor@hospital.com",
   },
 ]
 
@@ -124,6 +131,7 @@ const mockMetrics = {
   processedFiles: 142,
   failedFiles: 8,
   queuedFiles: 6,
+  pendingReview: 12,
   totalRecords: 45230,
   duplicateRecords: 1240,
   averageQualityScore: 87,
@@ -132,7 +140,16 @@ const mockMetrics = {
   apiCalls: 12450,
 }
 
-export function DataIngestionPortalClient() {
+function LoadingSpinner() {
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-gray-50">
+      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+    </div>
+  )
+}
+
+export default function DataIngestionPortal() {
+  const [mounted, setMounted] = useState(false)
   const [files, setFiles] = useState(mockFiles)
   const [selectedFiles, setSelectedFiles] = useState<number[]>([])
   const [searchTerm, setSearchTerm] = useState("")
@@ -150,12 +167,12 @@ export function DataIngestionPortalClient() {
   const [autoRefresh, setAutoRefresh] = useState(false)
   const [refreshInterval, setRefreshInterval] = useState(30)
   const [notifications, setNotifications] = useState(true)
-  const [darkMode, setDarkMode] = useState(false)
   const [compactView, setCompactView] = useState(false)
   const [showPreview, setShowPreview] = useState(false)
   const [previewData, setPreviewData] = useState<any>(null)
   const [activeTab, setActiveTab] = useState("upload")
   const { toast } = useToast()
+  const { isAdmin } = useUserRole()
 
   // Filter and sort files
   const filteredFiles = files
@@ -205,12 +222,18 @@ export function DataIngestionPortalClient() {
                 id: files.length + index + 1,
                 name: file.name,
                 size: `${(file.size / 1024 / 1024).toFixed(1)} MB`,
-                status: "processing" as const,
+                status:
+                  file.name.includes(".pdf") || file.name.includes("research") || file.name.includes("study")
+                    ? ("pending_review" as const)
+                    : ("processing" as const),
                 uploadDate: new Date().toISOString().split("T")[0],
                 type: file.name.split(".").pop()?.toUpperCase() || "Unknown",
                 records: 0,
                 duplicates: 0,
                 qualityScore: 0,
+                needsReview:
+                  file.name.includes(".pdf") || file.name.includes("research") || file.name.includes("study"),
+                uploadedBy: "current-user@example.com",
               }))
 
               setFiles((prev) => [...newFiles, ...prev])
@@ -239,12 +262,44 @@ export function DataIngestionPortalClient() {
       return
     }
 
+    // Check admin permissions for certain actions
+    if ((bulkAction === "approve" || bulkAction === "reject") && !isAdmin) {
+      toast({
+        title: "Access Denied",
+        description: "Only administrators can approve or reject files",
+        variant: "destructive",
+      })
+      return
+    }
+
     switch (bulkAction) {
       case "delete":
         setFiles((prev) => prev.filter((file) => !selectedFiles.includes(file.id)))
         toast({
           title: "Files deleted",
           description: `${selectedFiles.length} file(s) deleted successfully`,
+        })
+        break
+      case "approve":
+        setFiles((prev) =>
+          prev.map((file) =>
+            selectedFiles.includes(file.id) ? { ...file, status: "approved" as const, needsReview: false } : file,
+          ),
+        )
+        toast({
+          title: "Files approved",
+          description: `${selectedFiles.length} file(s) approved successfully`,
+        })
+        break
+      case "reject":
+        setFiles((prev) =>
+          prev.map((file) =>
+            selectedFiles.includes(file.id) ? { ...file, status: "rejected" as const, needsReview: false } : file,
+          ),
+        )
+        toast({
+          title: "Files rejected",
+          description: `${selectedFiles.length} file(s) rejected`,
         })
         break
       case "reprocess":
@@ -262,20 +317,11 @@ export function DataIngestionPortalClient() {
           description: `Exporting ${selectedFiles.length} file(s)...`,
         })
         break
-      case "archive":
-        setFiles((prev) =>
-          prev.map((file) => (selectedFiles.includes(file.id) ? { ...file, status: "archived" as const } : file)),
-        )
-        toast({
-          title: "Files archived",
-          description: `${selectedFiles.length} file(s) archived successfully`,
-        })
-        break
     }
 
     setSelectedFiles([])
     setBulkAction("")
-  }, [selectedFiles, bulkAction, toast])
+  }, [selectedFiles, bulkAction, toast, isAdmin])
 
   const handleSelectAll = useCallback(() => {
     if (selectedFiles.length === filteredFiles.length) {
@@ -287,12 +333,44 @@ export function DataIngestionPortalClient() {
 
   const handleFileAction = useCallback(
     (fileId: number, action: string) => {
+      // Check admin permissions for review actions
+      if ((action === "approve" || action === "reject") && !isAdmin) {
+        toast({
+          title: "Access Denied",
+          description: "Only administrators can approve or reject files",
+          variant: "destructive",
+        })
+        return
+      }
+
       switch (action) {
         case "delete":
           setFiles((prev) => prev.filter((file) => file.id !== fileId))
           toast({
             title: "File deleted",
             description: "File deleted successfully",
+          })
+          break
+        case "approve":
+          setFiles((prev) =>
+            prev.map((file) =>
+              file.id === fileId ? { ...file, status: "approved" as const, needsReview: false } : file,
+            ),
+          )
+          toast({
+            title: "File approved",
+            description: "File approved successfully",
+          })
+          break
+        case "reject":
+          setFiles((prev) =>
+            prev.map((file) =>
+              file.id === fileId ? { ...file, status: "rejected" as const, needsReview: false } : file,
+            ),
+          )
+          toast({
+            title: "File rejected",
+            description: "File rejected",
           })
           break
         case "reprocess":
@@ -317,6 +395,7 @@ export function DataIngestionPortalClient() {
               name: file.name,
               type: file.type,
               records: file.records,
+              uploadedBy: file.uploadedBy,
               sample: [
                 { id: 1, name: "John Doe", email: "john@example.com", status: "active" },
                 { id: 2, name: "Jane Smith", email: "jane@example.com", status: "inactive" },
@@ -328,19 +407,23 @@ export function DataIngestionPortalClient() {
           break
       }
     },
-    [files, toast],
+    [files, toast, isAdmin],
   )
 
   const getStatusIcon = (status: string) => {
     switch (status) {
       case "processed":
+      case "approved":
         return <CheckCircle className="h-4 w-4 text-green-500" />
       case "processing":
         return <RefreshCw className="h-4 w-4 text-blue-500 animate-spin" />
       case "failed":
+      case "rejected":
         return <XCircle className="h-4 w-4 text-red-500" />
-      case "queued":
+      case "pending_review":
         return <Clock className="h-4 w-4 text-yellow-500" />
+      case "queued":
+        return <Clock className="h-4 w-4 text-gray-500" />
       default:
         return <AlertCircle className="h-4 w-4 text-gray-500" />
     }
@@ -349,15 +432,27 @@ export function DataIngestionPortalClient() {
   const getStatusBadge = (status: string) => {
     const variants = {
       processed: "default",
+      approved: "default",
       processing: "secondary",
       failed: "destructive",
+      rejected: "destructive",
+      pending_review: "outline",
       queued: "outline",
-      archived: "secondary",
+    } as const
+
+    const labels = {
+      processed: "Processed",
+      approved: "Approved",
+      processing: "Processing",
+      failed: "Failed",
+      rejected: "Rejected",
+      pending_review: "Pending Review",
+      queued: "Queued",
     } as const
 
     return (
       <Badge variant={variants[status as keyof typeof variants] || "outline"}>
-        {status.charAt(0).toUpperCase() + status.slice(1)}
+        {labels[status as keyof typeof labels] || status}
       </Badge>
     )
   }
@@ -389,6 +484,17 @@ export function DataIngestionPortalClient() {
     }
   }, [autoRefresh, refreshInterval])
 
+  useEffect(() => {
+    setMounted(true)
+  }, [])
+
+  if (!mounted) {
+    return <LoadingSpinner />
+  }
+
+  // Get pending review count for admin
+  const pendingReviewCount = files.filter((f) => f.status === "pending_review").length
+
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
@@ -402,13 +508,21 @@ export function DataIngestionPortalClient() {
             <Badge variant="secondary" className="hidden sm:inline-flex">
               v2.1.0
             </Badge>
+            {isAdmin && (
+              <Badge variant="outline" className="hidden sm:inline-flex">
+                <Shield className="w-3 h-3 mr-1" />
+                Admin Mode
+              </Badge>
+            )}
           </div>
 
           <div className="flex items-center space-x-4">
-            <Button variant="ghost" size="sm" className="hidden md:inline-flex">
-              <Bell className="h-4 w-4" />
-              <Badge className="ml-1 h-5 w-5 rounded-full p-0 text-xs">3</Badge>
-            </Button>
+            {isAdmin && pendingReviewCount > 0 && (
+              <Button variant="ghost" size="sm" className="hidden md:inline-flex">
+                <Bell className="h-4 w-4" />
+                <Badge className="ml-1 h-5 w-5 rounded-full p-0 text-xs">{pendingReviewCount}</Badge>
+              </Button>
+            )}
             <Button variant="ghost" size="sm" className="hidden md:inline-flex">
               <HelpCircle className="h-4 w-4" />
             </Button>
@@ -422,7 +536,12 @@ export function DataIngestionPortalClient() {
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
           <TabsList className="grid w-full grid-cols-5">
             <TabsTrigger value="upload">Upload</TabsTrigger>
-            <TabsTrigger value="files">Files</TabsTrigger>
+            <TabsTrigger value="files">
+              Files
+              {pendingReviewCount > 0 && isAdmin && (
+                <Badge className="ml-2 h-5 w-5 rounded-full p-0 text-xs">{pendingReviewCount}</Badge>
+              )}
+            </TabsTrigger>
             <TabsTrigger value="analytics">Analytics</TabsTrigger>
             <TabsTrigger value="quality">Quality</TabsTrigger>
             <TabsTrigger value="settings">Settings</TabsTrigger>
@@ -437,7 +556,15 @@ export function DataIngestionPortalClient() {
                     <Upload className="h-5 w-5" />
                     <span>File Upload</span>
                   </CardTitle>
-                  <CardDescription>Upload your data files for processing and analysis</CardDescription>
+                  <CardDescription>
+                    Upload your data files for processing and analysis
+                    {!isAdmin && (
+                      <div className="mt-2 text-sm text-muted-foreground">
+                        <Lock className="inline w-3 h-3 mr-1" />
+                        Research papers will require admin approval
+                      </div>
+                    )}
+                  </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div className="border-2 border-dashed border-muted-foreground/25 rounded-lg p-8 text-center">
@@ -453,11 +580,11 @@ export function DataIngestionPortalClient() {
                         multiple
                         className="hidden"
                         onChange={handleFileUpload}
-                        accept=".csv,.xlsx,.json,.xml,.txt"
+                        accept=".csv,.xlsx,.json,.xml,.txt,.pdf"
                       />
                     </div>
                     <p className="text-xs text-muted-foreground mt-2">
-                      Supports CSV, Excel, JSON, XML, and Text files up to 100MB
+                      Supports CSV, Excel, JSON, XML, Text, and PDF files up to 100MB
                     </p>
                   </div>
 
@@ -495,8 +622,10 @@ export function DataIngestionPortalClient() {
                       <div className="text-sm text-muted-foreground">Failed</div>
                     </div>
                     <div className="text-center">
-                      <div className="text-2xl font-bold text-yellow-600">{mockMetrics.queuedFiles}</div>
-                      <div className="text-sm text-muted-foreground">Queued</div>
+                      <div className="text-2xl font-bold text-yellow-600">
+                        {isAdmin ? mockMetrics.pendingReview : mockMetrics.queuedFiles}
+                      </div>
+                      <div className="text-sm text-muted-foreground">{isAdmin ? "Pending Review" : "Queued"}</div>
                     </div>
                   </div>
                 </CardContent>
@@ -508,6 +637,23 @@ export function DataIngestionPortalClient() {
 
           {/* Files Tab */}
           <TabsContent value="files" className="space-y-6">
+            {/* Admin Review Alert */}
+            {isAdmin && pendingReviewCount > 0 && (
+              <Card className="border-yellow-200 bg-yellow-50">
+                <CardContent className="pt-6">
+                  <div className="flex items-center space-x-2">
+                    <AlertCircle className="h-5 w-5 text-yellow-600" />
+                    <div>
+                      <p className="font-medium text-yellow-800">{pendingReviewCount} file(s) pending your review</p>
+                      <p className="text-sm text-yellow-700">
+                        Research papers and studies require admin approval before processing.
+                      </p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
             {/* Filters and Controls */}
             <Card>
               <CardHeader>
@@ -548,8 +694,11 @@ export function DataIngestionPortalClient() {
                     <SelectContent>
                       <SelectItem value="all">All Status</SelectItem>
                       <SelectItem value="processed">Processed</SelectItem>
+                      <SelectItem value="approved">Approved</SelectItem>
                       <SelectItem value="processing">Processing</SelectItem>
+                      <SelectItem value="pending_review">Pending Review</SelectItem>
                       <SelectItem value="failed">Failed</SelectItem>
+                      <SelectItem value="rejected">Rejected</SelectItem>
                       <SelectItem value="queued">Queued</SelectItem>
                     </SelectContent>
                   </Select>
@@ -564,6 +713,7 @@ export function DataIngestionPortalClient() {
                       <SelectItem value="json">JSON</SelectItem>
                       <SelectItem value="xml">XML</SelectItem>
                       <SelectItem value="text">Text</SelectItem>
+                      <SelectItem value="pdf">PDF</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -633,7 +783,12 @@ export function DataIngestionPortalClient() {
                           <SelectItem value="delete">Delete</SelectItem>
                           <SelectItem value="reprocess">Reprocess</SelectItem>
                           <SelectItem value="export">Export</SelectItem>
-                          <SelectItem value="archive">Archive</SelectItem>
+                          {isAdmin && (
+                            <>
+                              <SelectItem value="approve">Approve</SelectItem>
+                              <SelectItem value="reject">Reject</SelectItem>
+                            </>
+                          )}
                         </SelectContent>
                       </Select>
                       <Button size="sm" onClick={handleBulkAction} disabled={!bulkAction}>
@@ -665,6 +820,7 @@ export function DataIngestionPortalClient() {
                         <TableHead>Records</TableHead>
                         <TableHead>Quality</TableHead>
                         <TableHead>Upload Date</TableHead>
+                        {isAdmin && <TableHead>Uploaded By</TableHead>}
                         <TableHead className="w-12"></TableHead>
                       </TableRow>
                     </TableHeader>
@@ -687,6 +843,12 @@ export function DataIngestionPortalClient() {
                             <div className="flex items-center space-x-2">
                               <FileText className="h-4 w-4 text-muted-foreground" />
                               <span>{file.name}</span>
+                              {file.needsReview && (
+                                <Badge variant="outline" className="text-xs">
+                                  <Clock className="w-3 h-3 mr-1" />
+                                  Review
+                                </Badge>
+                              )}
                             </div>
                           </TableCell>
                           <TableCell>
@@ -713,6 +875,9 @@ export function DataIngestionPortalClient() {
                             </div>
                           </TableCell>
                           <TableCell>{file.uploadDate}</TableCell>
+                          {isAdmin && (
+                            <TableCell className="text-xs text-muted-foreground">{file.uploadedBy}</TableCell>
+                          )}
                           <TableCell>
                             <DropdownMenu>
                               <DropdownMenuTrigger asChild>
@@ -729,6 +894,19 @@ export function DataIngestionPortalClient() {
                                   <Download className="mr-2 h-4 w-4" />
                                   Download
                                 </DropdownMenuItem>
+                                {isAdmin && file.status === "pending_review" && (
+                                  <>
+                                    <DropdownMenuSeparator />
+                                    <DropdownMenuItem onClick={() => handleFileAction(file.id, "approve")}>
+                                      <UserCheck className="mr-2 h-4 w-4 text-green-600" />
+                                      Approve
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem onClick={() => handleFileAction(file.id, "reject")}>
+                                      <UserX className="mr-2 h-4 w-4 text-red-600" />
+                                      Reject
+                                    </DropdownMenuItem>
+                                  </>
+                                )}
                                 <DropdownMenuItem onClick={() => handleFileAction(file.id, "reprocess")}>
                                   <RefreshCw className="mr-2 h-4 w-4" />
                                   Reprocess
@@ -782,6 +960,19 @@ export function DataIngestionPortalClient() {
                                   <Download className="mr-2 h-4 w-4" />
                                   Download
                                 </DropdownMenuItem>
+                                {isAdmin && file.status === "pending_review" && (
+                                  <>
+                                    <DropdownMenuSeparator />
+                                    <DropdownMenuItem onClick={() => handleFileAction(file.id, "approve")}>
+                                      <UserCheck className="mr-2 h-4 w-4 text-green-600" />
+                                      Approve
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem onClick={() => handleFileAction(file.id, "reject")}>
+                                      <UserX className="mr-2 h-4 w-4 text-red-600" />
+                                      Reject
+                                    </DropdownMenuItem>
+                                  </>
+                                )}
                                 <DropdownMenuItem onClick={() => handleFileAction(file.id, "reprocess")}>
                                   <RefreshCw className="mr-2 h-4 w-4" />
                                   Reprocess
@@ -798,6 +989,12 @@ export function DataIngestionPortalClient() {
                             </DropdownMenu>
                           </div>
                           <CardTitle className="text-sm font-medium truncate">{file.name}</CardTitle>
+                          {file.needsReview && (
+                            <Badge variant="outline" className="text-xs w-fit">
+                              <Clock className="w-3 h-3 mr-1" />
+                              Needs Review
+                            </Badge>
+                          )}
                         </CardHeader>
                         <CardContent className="space-y-3">
                           <div className="flex items-center justify-between text-sm">
@@ -821,6 +1018,12 @@ export function DataIngestionPortalClient() {
                               <span className="text-muted-foreground">Uploaded:</span>
                               <span>{file.uploadDate}</span>
                             </div>
+                            {isAdmin && (
+                              <div className="flex justify-between text-sm">
+                                <span className="text-muted-foreground">By:</span>
+                                <span className="text-xs">{file.uploadedBy}</span>
+                              </div>
+                            )}
                           </div>
                         </CardContent>
                       </Card>
@@ -866,12 +1069,20 @@ export function DataIngestionPortalClient() {
               </Card>
               <Card>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">API Calls</CardTitle>
-                  <Activity className="h-4 w-4 text-muted-foreground" />
+                  <CardTitle className="text-sm font-medium">{isAdmin ? "Pending Review" : "API Calls"}</CardTitle>
+                  {isAdmin ? (
+                    <Clock className="h-4 w-4 text-muted-foreground" />
+                  ) : (
+                    <Activity className="h-4 w-4 text-muted-foreground" />
+                  )}
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">{mockMetrics.apiCalls.toLocaleString()}</div>
-                  <p className="text-xs text-muted-foreground">+5% from last month</p>
+                  <div className="text-2xl font-bold">
+                    {isAdmin ? mockMetrics.pendingReview : mockMetrics.apiCalls.toLocaleString()}
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    {isAdmin ? "Files awaiting approval" : "+5% from last month"}
+                  </p>
                 </CardContent>
               </Card>
             </div>
@@ -1032,6 +1243,50 @@ export function DataIngestionPortalClient() {
               </Card>
             </div>
 
+            {isAdmin && (
+              <Card>
+                <CardHeader>
+                  <CardTitle>Admin Settings</CardTitle>
+                  <CardDescription>Administrator-only configuration options</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div className="space-y-0.5">
+                      <Label>Auto-approve CSV files</Label>
+                      <p className="text-sm text-muted-foreground">Automatically approve CSV files without review</p>
+                    </div>
+                    <Switch />
+                  </div>
+
+                  <div className="flex items-center justify-between">
+                    <div className="space-y-0.5">
+                      <Label>Email notifications for reviews</Label>
+                      <p className="text-sm text-muted-foreground">Get notified when files need review</p>
+                    </div>
+                    <Switch defaultChecked />
+                  </div>
+
+                  <Separator />
+
+                  <div className="space-y-2">
+                    <Label>Review timeout (days)</Label>
+                    <Select defaultValue="7">
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="1">1 day</SelectItem>
+                        <SelectItem value="3">3 days</SelectItem>
+                        <SelectItem value="7">7 days</SelectItem>
+                        <SelectItem value="14">14 days</SelectItem>
+                        <SelectItem value="30">30 days</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
             <Card>
               <CardHeader>
                 <CardTitle>API Configuration</CardTitle>
@@ -1076,6 +1331,14 @@ export function DataIngestionPortalClient() {
                         Quality Alert
                       </Label>
                     </div>
+                    {isAdmin && (
+                      <div className="flex items-center space-x-2">
+                        <Checkbox id="review-needed" defaultChecked />
+                        <Label htmlFor="review-needed" className="text-sm">
+                          Review Needed
+                        </Label>
+                      </div>
+                    )}
                   </div>
                 </div>
 
@@ -1088,46 +1351,6 @@ export function DataIngestionPortalClient() {
           </TabsContent>
         </Tabs>
       </main>
-
-      {/* File Preview Dialog */}
-      <Dialog open={showPreview} onOpenChange={setShowPreview}>
-        <DialogContent className="max-w-4xl">
-          <DialogHeader>
-            <DialogTitle>File Preview: {previewData?.name}</DialogTitle>
-            <DialogDescription>
-              {previewData?.type} file with {previewData?.records} records
-            </DialogDescription>
-          </DialogHeader>
-          <div className="max-h-96 overflow-auto">
-            {previewData?.sample && (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    {Object.keys(previewData.sample[0] || {}).map((key) => (
-                      <TableHead key={key}>{key}</TableHead>
-                    ))}
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {previewData.sample.map((row: any, index: number) => (
-                    <TableRow key={index}>
-                      {Object.values(row).map((value: any, cellIndex: number) => (
-                        <TableCell key={cellIndex}>{value}</TableCell>
-                      ))}
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            )}
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowPreview(false)}>
-              Close
-            </Button>
-            <Button>Download Full File</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
   )
 }
