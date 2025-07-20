@@ -1,7 +1,15 @@
-export const dynamic = "force-dynamic"
-
+import { SignedIn, SignedOut, RedirectToSignIn } from "@clerk/nextjs"
 import DataIngestionPortalClient from "./page-client"
 
-export default function Page() {
-  return <DataIngestionPortalClient />
+export default function HomePage() {
+  return (
+    <>
+      <SignedIn>
+        <DataIngestionPortalClient />
+      </SignedIn>
+      <SignedOut>
+        <RedirectToSignIn />
+      </SignedOut>
+    </>
+  )
 }
