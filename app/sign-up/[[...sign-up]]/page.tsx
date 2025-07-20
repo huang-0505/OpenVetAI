@@ -1,11 +1,9 @@
-"use client"
-
 import { SignUp } from "@clerk/nextjs"
 
-export default function SignUpPage() {
+export default function Page() {
   return (
-    <main className="min-h-screen flex items-center justify-center bg-background">
-      <SignUp path="/sign-up" routing="path" signInUrl="/sign-in" />
-    </main>
+    <div className="flex min-h-screen items-center justify-center">
+      <SignUp />
+    </div>
   )
 }

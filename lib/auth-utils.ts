@@ -1,24 +1,24 @@
 "use client"
 
+import type { User } from "@clerk/nextjs/server"
+import { useState, useEffect } from "react"
 import { useUser } from "@clerk/nextjs"
 
-export function useUserRole() {
-  const { user } = useUser()
-
-  // Check if user is admin based on email or metadata
-  const isAdmin =
-    user?.emailAddresses?.[0]?.emailAddress === process.env.NEXT_PUBLIC_ADMIN_EMAIL ||
-    user?.publicMetadata?.role === "admin"
-
-  return {
-    isAdmin,
-    role: isAdmin ? "admin" : "user",
-  }
+export function isAdmin(user: User): boolean {
+  const adminEmail = process.env.NEXT_PUBLIC_ADMIN_EMAIL
+  return user.emailAddresses[0]?.emailAddress === adminEmail
 }
 
-export function checkAdminAccess(user: any): boolean {
-  return (
-    user?.emailAddresses?.[0]?.emailAddress === process.env.NEXT_PUBLIC_ADMIN_EMAIL ||
-    user?.publicMetadata?.role === "admin"
-  )
+export function useUserRole() {
+  const { user, isLoaded } = useUser()
+  const [isAdmin, setIsAdmin] = useState(false)
+
+  useEffect(() => {
+    if (isLoaded && user) {
+      const adminEmail = process.env.NEXT_PUBLIC_ADMIN_EMAIL
+      setIsAdmin(user.emailAddresses[0]?.emailAddress === adminEmail)
+    }
+  }, [user, isLoaded])
+
+  return { isAdmin, isLoaded }
 }
