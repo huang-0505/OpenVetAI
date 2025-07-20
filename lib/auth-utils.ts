@@ -2,24 +2,29 @@
 
 import { useUser, type User } from "@clerk/nextjs"
 
-/* ----------  SERVER / SHARED ---------- */
 export function isAdmin(user: User | null): boolean {
   if (!user) return false
+
+  // Check if user email matches admin email from environment
   const adminEmail = process.env.NEXT_PUBLIC_ADMIN_EMAIL
-  return user.emailAddresses.some((e) => e.emailAddress === adminEmail)
+  if (adminEmail && user.emailAddresses.some((email) => email.emailAddress === adminEmail)) {
+    return true
+  }
+
+  // Check if user has admin role in public metadata
+  const publicMetadata = user.publicMetadata as { role?: string }
+  return publicMetadata?.role === "admin"
 }
 
-/* ----------  CLIENT HOOK --------------- */
 export function useUserRole() {
   const { user, isLoaded } = useUser()
 
-  // While Clerk is loading we expose sensible fall-backs
   if (!isLoaded) {
     return {
       isLoaded: false,
       isAdmin: false,
       role: "guest" as const,
-      user: null as User | null,
+      user: null,
     }
   }
 

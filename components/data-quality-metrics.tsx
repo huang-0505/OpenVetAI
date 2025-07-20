@@ -2,14 +2,12 @@
 
 import { useState, useEffect } from "react"
 import { supabase, type ProcessedData } from "@/lib/supabase"
-import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import {
   BarChart3,
-  RefreshCw,
   CheckCircle,
   AlertTriangle,
   XCircle,
@@ -17,6 +15,7 @@ import {
   Target,
   TrendingUp,
   AlertCircle,
+  Shield,
 } from "lucide-react"
 
 interface QualityMetrics {
@@ -306,42 +305,19 @@ export function DataQualityMetrics() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="flex items-center gap-2">
-            <BarChart3 className="h-5 w-5" />
+      <Card className="bg-slate-800/50 border-slate-700">
+        <CardHeader>
+          <CardTitle className="text-white flex items-center">
+            <Shield className="h-5 w-5 mr-2" />
             Data Quality Metrics
-            <Button variant="ghost" size="sm" onClick={analyzeData} disabled={isLoading} className="ml-auto">
-              <RefreshCw className={`h-4 w-4 ${isLoading ? "animate-spin" : ""}`} />
-            </Button>
           </CardTitle>
-          <CardDescription>
-            Comprehensive analysis of your veterinary data quality and training readiness
-          </CardDescription>
+          <CardDescription className="text-slate-300">Monitor and improve your data quality scores</CardDescription>
         </CardHeader>
         <CardContent>
-          {metrics && (
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-              <div className="text-center p-4 bg-blue-50 rounded-lg">
-                <div className="text-2xl font-bold text-blue-600">{metrics.totalDocuments}</div>
-                <div className="text-sm text-blue-600">Total Documents</div>
-              </div>
-              <div className="text-center p-4 bg-green-50 rounded-lg">
-                <div className={`text-2xl font-bold ${getQualityColor(metrics.readinessScore)}`}>
-                  {metrics.readinessScore}%
-                </div>
-                <div className="text-sm text-green-600">Training Readiness</div>
-              </div>
-              <div className="text-center p-4 bg-purple-50 rounded-lg">
-                <div className="text-2xl font-bold text-purple-600">{metrics.averageContentLength}</div>
-                <div className="text-sm text-purple-600">Avg. Content Length</div>
-              </div>
-              <div className="text-center p-4 bg-orange-50 rounded-lg">
-                <div className="text-2xl font-bold text-orange-600">{metrics.recentUploads}</div>
-                <div className="text-sm text-orange-600">Recent Uploads</div>
-              </div>
-            </div>
-          )}
+          <div className="text-slate-300">
+            <p>Quality metrics dashboard coming soon...</p>
+            <p className="text-sm text-slate-400 mt-2">Track data completeness, accuracy, and consistency metrics.</p>
+          </div>
         </CardContent>
       </Card>
 
