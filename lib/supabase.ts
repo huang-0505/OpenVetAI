@@ -23,5 +23,5 @@ export interface ProcessedData {
   created_at: string
   updated_at: string
   quality_score?: number
-  user_id?: string // Added this field
+  user_id?: string
 }

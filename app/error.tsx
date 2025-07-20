@@ -17,18 +17,24 @@ export default function Error({
   }, [error])
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
-      <Card className="w-full max-w-md">
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center p-4">
+      <Card className="w-full max-w-md bg-slate-800/50 border-slate-700">
         <CardHeader className="text-center">
           <AlertTriangle className="h-12 w-12 text-red-500 mx-auto mb-4" />
-          <CardTitle>Something went wrong!</CardTitle>
-          <CardDescription>We encountered an error while loading the application.</CardDescription>
+          <CardTitle className="text-2xl text-white">Something went wrong!</CardTitle>
+          <CardDescription className="text-slate-400">
+            We encountered an error while loading the application.
+          </CardDescription>
         </CardHeader>
-        <CardContent className="text-center space-y-4">
-          <Button onClick={reset} className="w-full">
+        <CardContent className="space-y-4">
+          <Button onClick={reset} className="w-full bg-blue-600 hover:bg-blue-700 text-white">
             Try again
           </Button>
-          <Button variant="outline" onClick={() => (window.location.href = "/")} className="w-full">
+          <Button
+            variant="outline"
+            onClick={() => (window.location.href = "/")}
+            className="w-full border-slate-600 text-slate-300 hover:bg-slate-700 bg-transparent"
+          >
             Go to Home
           </Button>
         </CardContent>

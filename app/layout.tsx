@@ -10,7 +10,7 @@ const inter = Inter({ subsets: ["latin"] })
 
 export const metadata: Metadata = {
   title: "Data Ingestion Portal",
-  description: "A comprehensive data ingestion and processing platform",
+  description: "Advanced data processing and analysis platform",
     generator: 'v0.dev'
 }
 
