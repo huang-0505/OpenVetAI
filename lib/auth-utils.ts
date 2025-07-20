@@ -1,24 +1,33 @@
 "use client"
 
-import type { User } from "@clerk/nextjs/server"
-import { useState, useEffect } from "react"
-import { useUser } from "@clerk/nextjs"
+import { useUser, type User } from "@clerk/nextjs"
 
-export function isAdmin(user: User): boolean {
+/* ----------  SERVER / SHARED ---------- */
+export function isAdmin(user: User | null): boolean {
+  if (!user) return false
   const adminEmail = process.env.NEXT_PUBLIC_ADMIN_EMAIL
-  return user.emailAddresses[0]?.emailAddress === adminEmail
+  return user.emailAddresses.some((e) => e.emailAddress === adminEmail)
 }
 
+/* ----------  CLIENT HOOK --------------- */
 export function useUserRole() {
   const { user, isLoaded } = useUser()
-  const [isAdmin, setIsAdmin] = useState(false)
 
-  useEffect(() => {
-    if (isLoaded && user) {
-      const adminEmail = process.env.NEXT_PUBLIC_ADMIN_EMAIL
-      setIsAdmin(user.emailAddresses[0]?.emailAddress === adminEmail)
+  // While Clerk is loading we expose sensible fall-backs
+  if (!isLoaded) {
+    return {
+      isLoaded: false,
+      isAdmin: false,
+      role: "guest" as const,
+      user: null as User | null,
     }
-  }, [user, isLoaded])
+  }
 
-  return { isAdmin, isLoaded }
+  const admin = isAdmin(user)
+  return {
+    isLoaded: true,
+    isAdmin: admin,
+    role: admin ? ("admin" as const) : ("user" as const),
+    user,
+  }
 }

@@ -1,303 +1,325 @@
 "use client"
 
-import { useState, useEffect } from "react"
-import { useUser } from "@clerk/nextjs"
-import { Button } from "@/components/ui/button"
+import { useState, useCallback, useEffect } from "react"
+import { useDropzone } from "react-dropzone"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
+import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
-import { Separator } from "@/components/ui/separator"
-import { Switch } from "@/components/ui/switch"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Checkbox } from "@/components/ui/checkbox"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Switch } from "@/components/ui/switch"
+import { Separator } from "@/components/ui/separator"
 import {
   Upload,
   FileText,
-  Database,
-  BarChart3,
-  Settings,
-  Filter,
-  Download,
-  Trash2,
-  Eye,
   CheckCircle,
   XCircle,
   Clock,
-  AlertCircle,
-  Grid3X3,
-  List,
-  MoreHorizontal,
+  Database,
+  BarChart3,
+  Settings,
   RefreshCw,
-  Archive,
-  Crown,
-  Users,
+  Download,
+  Search,
   Shield,
-  Zap,
-  Wifi,
+  Bell,
+  HelpCircle,
 } from "lucide-react"
-import { UserMenu } from "./user-menu"
-import { DataViewer } from "./data-viewer"
-import { DatabaseStatus } from "./database-status"
-import { DataQualityMetrics } from "./data-quality-metrics"
-import { isAdmin } from "@/lib/auth-utils"
+import { toast } from "@/hooks/use-toast"
+import { useMounted } from "@/hooks/use-mounted"
+import { useUserRole } from "@/lib/auth-utils"
+import { UserMenu } from "@/components/user-menu"
 
-interface FileItem {
+interface FileData {
   id: string
   name: string
+  size: number
   type: string
-  size: string
-  status: "processing" | "completed" | "failed" | "pending_review"
-  records: number
-  quality: number
-  uploadDate: string
-  uploadedBy?: string
+  status: "processing" | "completed" | "failed" | "queued"
+  uploadedAt: Date
+  processedAt?: Date
+  errorMessage?: string
+  qualityScore?: number
+  duplicateOf?: string
 }
 
-const mockFiles: FileItem[] = [
-  {
-    id: "1",
-    name: "inventory.xlsx",
-    type: "Excel",
-    size: "5.7 MB",
-    status: "processing",
-    records: 3400,
-    quality: 88,
-    uploadDate: "2024-01-15",
-    uploadedBy: "john@example.com",
-  },
-  {
-    id: "2",
-    name: "customer_data.csv",
-    type: "CSV",
-    size: "2.3 MB",
-    status: "completed",
-    records: 1250,
-    quality: 92,
-    uploadDate: "2024-01-15",
-    uploadedBy: "sarah@example.com",
-  },
-  {
-    id: "3",
-    name: "user_profiles.xml",
-    type: "XML",
-    size: "3.2 MB",
-    status: "completed",
-    records: 2100,
-    quality: 94,
-    uploadDate: "2024-01-14",
-    uploadedBy: "mike@example.com",
-  },
-]
+interface DatabaseStats {
+  totalRecords: number
+  approved: number
+  rejected: number
+  pending: number
+  lastUpdated: Date
+}
 
 export default function DataIngestionPortalClient() {
-  const { user, isLoaded } = useUser()
-  const [mounted, setMounted] = useState(false)
-  const [files, setFiles] = useState<FileItem[]>(mockFiles)
-  const [selectedFiles, setSelectedFiles] = useState<string[]>([])
-  const [viewMode, setViewMode] = useState<"grid" | "table">("table")
+  const mounted = useMounted()
+  const userRole = useUserRole()
+  const [files, setFiles] = useState<FileData[]>([])
+  const [isUploading, setIsUploading] = useState(false)
+  const [activeTab, setActiveTab] = useState("upload")
   const [searchTerm, setSearchTerm] = useState("")
-  const [statusFilter, setStatusFilter] = useState("all")
-  const [typeFilter, setTypeFilter] = useState("all")
-  const [showFilters, setShowFilters] = useState(false)
-  const [autoRefresh, setAutoRefresh] = useState(true)
-  const [notifications, setNotifications] = useState(true)
-
-  useEffect(() => {
-    setMounted(true)
-  }, [])
-
-  const userIsAdmin = mounted && isLoaded && user ? isAdmin(user) : false
-
-  const filteredFiles = files.filter((file) => {
-    const matchesSearch = file.name.toLowerCase().includes(searchTerm.toLowerCase())
-    const matchesStatus = statusFilter === "all" || file.status === statusFilter
-    const matchesType = typeFilter === "all" || file.type.toLowerCase() === typeFilter.toLowerCase()
-    return matchesSearch && matchesStatus && matchesType
+  const [statusFilter, setStatusFilter] = useState<string>("all")
+  const [dbStats, setDbStats] = useState<DatabaseStats>({
+    totalRecords: 1,
+    approved: 1,
+    rejected: 0,
+    pending: 0,
+    lastUpdated: new Date(),
   })
 
-  const handleFileSelect = (fileId: string) => {
-    setSelectedFiles((prev) => (prev.includes(fileId) ? prev.filter((id) => id !== fileId) : [...prev, fileId]))
-  }
+  // Mock data for demonstration
+  useEffect(() => {
+    const mockFiles: FileData[] = [
+      {
+        id: "1",
+        name: "customer_data.csv",
+        size: 2048576,
+        type: "text/csv",
+        status: "completed",
+        uploadedAt: new Date(Date.now() - 3600000),
+        processedAt: new Date(Date.now() - 3000000),
+        qualityScore: 95,
+      },
+      {
+        id: "2",
+        name: "inventory.xlsx",
+        size: 1024000,
+        type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        status: "processing",
+        uploadedAt: new Date(Date.now() - 1800000),
+        qualityScore: 88,
+      },
+      {
+        id: "3",
+        name: "sales_report.json",
+        size: 512000,
+        type: "application/json",
+        status: "failed",
+        uploadedAt: new Date(Date.now() - 900000),
+        errorMessage: "Invalid JSON format on line 45",
+        qualityScore: 45,
+      },
+    ]
+    setFiles(mockFiles)
+  }, [])
 
-  const handleSelectAll = () => {
-    setSelectedFiles(selectedFiles.length === filteredFiles.length ? [] : filteredFiles.map((f) => f.id))
-  }
+  const onDrop = useCallback((acceptedFiles: File[]) => {
+    setIsUploading(true)
 
-  const handleBulkAction = (action: string) => {
-    if (!userIsAdmin && (action === "approve" || action === "reject")) {
-      return // Only admins can approve/reject
-    }
+    acceptedFiles.forEach((file) => {
+      const newFile: FileData = {
+        id: Math.random().toString(36).substr(2, 9),
+        name: file.name,
+        size: file.size,
+        type: file.type,
+        status: "queued",
+        uploadedAt: new Date(),
+        qualityScore: Math.floor(Math.random() * 40) + 60,
+      }
 
-    console.log(`Performing ${action} on files:`, selectedFiles)
-    setSelectedFiles([])
-  }
+      setFiles((prev) => [...prev, newFile])
 
-  const handleStatusChange = (fileId: string, newStatus: FileItem["status"]) => {
-    if (!userIsAdmin && (newStatus === "completed" || newStatus === "failed")) {
-      return // Only admins can change status
-    }
+      // Simulate processing
+      setTimeout(() => {
+        setFiles((prev) => prev.map((f) => (f.id === newFile.id ? { ...f, status: "processing" as const } : f)))
 
-    setFiles((prev) => prev.map((file) => (file.id === fileId ? { ...file, status: newStatus } : file)))
-  }
+        setTimeout(() => {
+          const success = Math.random() > 0.2
+          setFiles((prev) =>
+            prev.map((f) =>
+              f.id === newFile.id
+                ? {
+                    ...f,
+                    status: success ? ("completed" as const) : ("failed" as const),
+                    processedAt: success ? new Date() : undefined,
+                    errorMessage: success ? undefined : "Processing failed due to data format issues",
+                  }
+                : f,
+            ),
+          )
+        }, 3000)
+      }, 1000)
+    })
 
-  const getStatusIcon = (status: FileItem["status"]) => {
+    setTimeout(() => setIsUploading(false), 1000)
+    toast({
+      title: "Files uploaded",
+      description: `${acceptedFiles.length} file(s) added to processing queue.`,
+    })
+  }, [])
+
+  const { getRootProps, getInputProps, isDragActive } = useDropzone({
+    onDrop,
+    accept: {
+      "text/csv": [".csv"],
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": [".xlsx"],
+      "application/vnd.ms-excel": [".xls"],
+      "application/json": [".json"],
+      "text/xml": [".xml"],
+      "text/plain": [".txt"],
+    },
+    maxSize: 100 * 1024 * 1024, // 100MB
+  })
+
+  const getStatusIcon = (status: FileData["status"]) => {
     switch (status) {
       case "completed":
         return <CheckCircle className="h-4 w-4 text-green-500" />
       case "failed":
         return <XCircle className="h-4 w-4 text-red-500" />
       case "processing":
-        return <Clock className="h-4 w-4 text-blue-500" />
-      case "pending_review":
-        return <AlertCircle className="h-4 w-4 text-yellow-500" />
+        return <RefreshCw className="h-4 w-4 text-blue-500 animate-spin" />
+      case "queued":
+        return <Clock className="h-4 w-4 text-yellow-500" />
       default:
-        return <Clock className="h-4 w-4 text-gray-500" />
+        return null
     }
   }
 
-  const getStatusBadge = (status: FileItem["status"]) => {
+  const getStatusBadge = (status: FileData["status"]) => {
     const variants = {
       completed: "default",
       failed: "destructive",
       processing: "secondary",
-      pending_review: "outline",
+      queued: "outline",
     } as const
 
-    return <Badge variant={variants[status] || "secondary"}>{status.replace("_", " ")}</Badge>
-  }
-
-  if (!mounted || !isLoaded) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-background">
-        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary"></div>
-      </div>
+      <Badge variant={variants[status]} className="capitalize">
+        {status}
+      </Badge>
     )
   }
 
+  const filteredFiles = files.filter((file) => {
+    const matchesSearch = file.name.toLowerCase().includes(searchTerm.toLowerCase())
+    const matchesStatus = statusFilter === "all" || file.status === statusFilter
+    return matchesSearch && matchesStatus
+  })
+
+  const stats = {
+    total: files.length,
+    processed: files.filter((f) => f.status === "completed").length,
+    failed: files.filter((f) => f.status === "failed").length,
+    queued: files.filter((f) => f.status === "queued" || f.status === "processing").length,
+  }
+
+  if (!mounted) {
+    return null
+  }
+
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen dark-theme">
       {/* Header */}
-      <header className="border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-        <div className="container flex h-16 items-center px-6">
-          <div className="mr-4 flex items-center">
-            <Database className="h-6 w-6 mr-3 text-primary" />
-            <span className="font-bold text-xl text-foreground">Data Ingestion Portal</span>
+      <header className="border-b border-white/10 bg-black/20 backdrop-blur-sm">
+        <div className="flex h-16 items-center justify-between px-6">
+          <div className="flex items-center space-x-4">
+            <Database className="h-8 w-8 text-blue-400" />
+            <h1 className="text-xl font-semibold text-white">Data Ingestion Portal</h1>
           </div>
-          <div className="flex flex-1 items-center justify-between space-x-2 md:justify-end">
-            <div className="w-full flex-1 md:w-auto md:flex-none"></div>
-            <nav className="flex items-center space-x-4">
-              {userIsAdmin && (
-                <Badge variant="secondary" className="bg-yellow-500/20 text-yellow-400 border-yellow-500/30">
-                  <Crown className="h-3 w-3 mr-1" />
-                  Admin
-                </Badge>
-              )}
-              <UserMenu />
-            </nav>
+          <div className="flex items-center space-x-4">
+            <Button variant="ghost" size="icon" className="text-white hover:bg-white/10">
+              <Bell className="h-5 w-5" />
+            </Button>
+            <Button variant="ghost" size="icon" className="text-white hover:bg-white/10">
+              <HelpCircle className="h-5 w-5" />
+            </Button>
+            <UserMenu />
           </div>
         </div>
       </header>
 
       {/* Main Content */}
-      <main className="container mx-auto py-8 px-6">
-        <Tabs defaultValue="upload" className="space-y-8">
-          <TabsList className="grid w-full grid-cols-5 bg-card border border-border">
-            <TabsTrigger
-              value="upload"
-              className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
-            >
+      <div className="p-6">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+          <TabsList className="grid w-full grid-cols-5 bg-black/20 border border-white/10">
+            <TabsTrigger value="upload" className="dark-tab data-[state=active]:dark-tab data-[state=active]:active">
+              <Upload className="h-4 w-4 mr-2" />
               Upload
             </TabsTrigger>
-            <TabsTrigger
-              value="files"
-              className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
-            >
+            <TabsTrigger value="files" className="dark-tab data-[state=active]:dark-tab data-[state=active]:active">
+              <FileText className="h-4 w-4 mr-2" />
               Files
             </TabsTrigger>
-            <TabsTrigger
-              value="analytics"
-              className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
-            >
+            <TabsTrigger value="analytics" className="dark-tab data-[state=active]:dark-tab data-[state=active]:active">
+              <BarChart3 className="h-4 w-4 mr-2" />
               Analytics
             </TabsTrigger>
-            <TabsTrigger
-              value="quality"
-              className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
-            >
+            <TabsTrigger value="quality" className="dark-tab data-[state=active]:dark-tab data-[state=active]:active">
+              <Shield className="h-4 w-4 mr-2" />
               Quality
             </TabsTrigger>
-            <TabsTrigger
-              value="settings"
-              className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
-            >
+            <TabsTrigger value="settings" className="dark-tab data-[state=active]:dark-tab data-[state=active]:active">
+              <Settings className="h-4 w-4 mr-2" />
               Settings
             </TabsTrigger>
           </TabsList>
 
-          {/* Upload Tab */}
-          <TabsContent value="upload" className="space-y-8">
-            <div className="grid gap-8 lg:grid-cols-2">
-              {/* File Upload Section */}
-              <Card className="bg-card border-border">
+          <TabsContent value="upload" className="space-y-6">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* File Upload */}
+              <Card className="dark-card">
                 <CardHeader>
-                  <CardTitle className="flex items-center gap-3 text-xl">
-                    <Upload className="h-6 w-6 text-primary" />
+                  <CardTitle className="flex items-center text-white">
+                    <Upload className="h-5 w-5 mr-2" />
                     File Upload
                   </CardTitle>
-                  <CardDescription className="text-muted-foreground">
+                  <CardDescription className="text-gray-300">
                     Upload your data files for processing and analysis
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <div className="upload-area rounded-xl p-12 text-center transition-all duration-200">
-                    <Upload className="h-16 w-16 mx-auto mb-4 text-muted-foreground" />
-                    <h3 className="text-lg font-semibold mb-2 text-foreground">Click to upload or drag and drop</h3>
-                    <p className="text-sm text-muted-foreground mb-4">
-                      Supports CSV, Excel, JSON, XML, and Text files up to 100MB
+                  <div
+                    {...getRootProps()}
+                    className={`dark-upload-area rounded-lg p-8 text-center cursor-pointer transition-all duration-200 ${
+                      isDragActive ? "scale-105" : ""
+                    }`}
+                  >
+                    <input {...getInputProps()} />
+                    <Upload className="h-12 w-12 mx-auto mb-4 text-blue-400" />
+                    <p className="text-lg font-medium text-white mb-2">
+                      {isDragActive ? "Drop files here" : "Click to upload or drag and drop"}
                     </p>
-                    <Button variant="outline" size="lg" className="border-border hover:bg-accent bg-transparent">
-                      Choose Files
-                    </Button>
+                    <p className="text-sm text-gray-400">Supports CSV, Excel, JSON, XML, and Text files up to 100MB</p>
                   </div>
+                  {isUploading && (
+                    <div className="mt-4">
+                      <Progress value={75} className="w-full" />
+                      <p className="text-sm text-gray-400 mt-2">Uploading files...</p>
+                    </div>
+                  )}
                 </CardContent>
               </Card>
 
               {/* Quick Stats */}
-              <Card className="bg-card border-border">
+              <Card className="dark-card">
                 <CardHeader>
-                  <CardTitle className="flex items-center gap-3 text-xl">
-                    <BarChart3 className="h-6 w-6 text-primary" />
+                  <CardTitle className="flex items-center text-white">
+                    <BarChart3 className="h-5 w-5 mr-2" />
                     Quick Stats
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
                   <div className="grid grid-cols-2 gap-4">
-                    <div className="stat-card rounded-lg p-4 text-center">
-                      <div className="text-3xl font-bold text-blue-400 mb-1">156</div>
-                      <div className="text-sm text-muted-foreground">Total Files</div>
+                    <div className="stat-card-blue rounded-lg p-4 text-center">
+                      <div className="text-2xl font-bold text-blue-400">{stats.total}</div>
+                      <div className="text-sm text-gray-300">Total Files</div>
                     </div>
-                    <div className="stat-card rounded-lg p-4 text-center">
-                      <div className="text-3xl font-bold text-green-400 mb-1">142</div>
-                      <div className="text-sm text-muted-foreground">Processed</div>
+                    <div className="stat-card-green rounded-lg p-4 text-center">
+                      <div className="text-2xl font-bold text-green-400">{stats.processed}</div>
+                      <div className="text-sm text-gray-300">Processed</div>
                     </div>
-                    <div className="stat-card rounded-lg p-4 text-center">
-                      <div className="text-3xl font-bold text-red-400 mb-1">8</div>
-                      <div className="text-sm text-muted-foreground">Failed</div>
+                    <div className="stat-card-red rounded-lg p-4 text-center">
+                      <div className="text-2xl font-bold text-red-400">{stats.failed}</div>
+                      <div className="text-sm text-gray-300">Failed</div>
                     </div>
-                    <div className="stat-card rounded-lg p-4 text-center">
-                      <div className="text-3xl font-bold text-yellow-400 mb-1">6</div>
-                      <div className="text-sm text-muted-foreground">Queued</div>
+                    <div className="stat-card-yellow rounded-lg p-4 text-center">
+                      <div className="text-2xl font-bold text-yellow-400">{stats.queued}</div>
+                      <div className="text-sm text-gray-300">Queued</div>
                     </div>
                   </div>
                 </CardContent>
@@ -305,452 +327,199 @@ export default function DataIngestionPortalClient() {
             </div>
 
             {/* Database Connection */}
-            <Card className="bg-card border-border">
-              <CardHeader className="pb-4">
-                <div className="flex items-center justify-between">
-                  <CardTitle className="flex items-center gap-3 text-xl">
-                    <Database className="h-6 w-6 text-primary" />
+            <Card className="dark-card">
+              <CardHeader className="flex flex-row items-center justify-between">
+                <div>
+                  <CardTitle className="flex items-center text-white">
+                    <Database className="h-5 w-5 mr-2" />
                     Database Connection
                   </CardTitle>
-                  <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground">
-                    <RefreshCw className="h-4 w-4" />
-                  </Button>
+                  <CardDescription className="text-gray-300">
+                    Supabase database connection status and statistics
+                  </CardDescription>
                 </div>
-                <CardDescription className="text-muted-foreground">
-                  Supabase database connection status and statistics
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                {/* Connection Status */}
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <Wifi className="h-5 w-5 text-green-500" />
-                    <span className="font-medium text-foreground">Connected</span>
-                  </div>
-                  <Badge variant="default" className="bg-green-500/20 text-green-400 border-green-500/30">
+                <div className="flex items-center space-x-2">
+                  <div className="h-2 w-2 bg-green-500 rounded-full"></div>
+                  <span className="text-sm text-white bg-green-500/20 px-2 py-1 rounded">Connected</span>
+                  <Badge variant="secondary" className="bg-green-500/20 text-green-400 border-green-500/30">
                     Online
                   </Badge>
                 </div>
-
-                {/* Database Stats */}
-                <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-                  <div className="metric-card-blue rounded-lg p-4 text-center">
-                    <div className="text-2xl font-bold text-blue-400 mb-1">1</div>
-                    <div className="text-sm text-blue-300">Total Records</div>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                  <div className="stat-card-blue rounded-lg p-4 text-center">
+                    <div className="text-2xl font-bold text-blue-400">{dbStats.totalRecords}</div>
+                    <div className="text-sm text-gray-300">Total Records</div>
                   </div>
-                  <div className="metric-card-green rounded-lg p-4 text-center">
-                    <div className="text-2xl font-bold text-green-400 mb-1">1</div>
-                    <div className="text-sm text-green-300">Approved</div>
+                  <div className="stat-card-green rounded-lg p-4 text-center">
+                    <div className="text-2xl font-bold text-green-400">{dbStats.approved}</div>
+                    <div className="text-sm text-gray-300">Approved</div>
                   </div>
-                  <div className="metric-card-yellow rounded-lg p-4 text-center">
-                    <div className="text-2xl font-bold text-yellow-400 mb-1">0</div>
-                    <div className="text-sm text-yellow-300">Ready</div>
+                  <div className="stat-card-yellow rounded-lg p-4 text-center">
+                    <div className="text-2xl font-bold text-yellow-400">{dbStats.pending}</div>
+                    <div className="text-sm text-gray-300">Ready</div>
                   </div>
-                  <div className="metric-card-red rounded-lg p-4 text-center">
-                    <div className="text-2xl font-bold text-red-400 mb-1">0</div>
-                    <div className="text-sm text-red-300">Rejected</div>
+                  <div className="stat-card-red rounded-lg p-4 text-center">
+                    <div className="text-2xl font-bold text-red-400">{dbStats.rejected}</div>
+                    <div className="text-sm text-gray-300">Rejected</div>
                   </div>
                 </div>
-
-                <div className="text-xs text-muted-foreground text-center">
-                  Last updated: {new Date().toLocaleString()}
+                <div className="mt-4 text-center">
+                  <p className="text-sm text-gray-400">Last updated: {dbStats.lastUpdated.toLocaleString()}</p>
                 </div>
               </CardContent>
             </Card>
           </TabsContent>
 
-          {/* Files Tab */}
           <TabsContent value="files" className="space-y-6">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-2">
-                <h2 className="text-2xl font-bold">File Management</h2>
-                {selectedFiles.length > 0 && <Badge variant="secondary">{selectedFiles.length} selected</Badge>}
-              </div>
-              <div className="flex items-center space-x-2">
-                <Button variant="outline" size="sm" onClick={() => setShowFilters(!showFilters)}>
-                  <Filter className="h-4 w-4 mr-2" />
-                  Show Filters
-                </Button>
-                <div className="flex items-center space-x-1 border rounded-md">
-                  <Button
-                    variant={viewMode === "table" ? "default" : "ghost"}
-                    size="sm"
-                    onClick={() => setViewMode("table")}
-                  >
-                    <List className="h-4 w-4" />
-                  </Button>
-                  <Button
-                    variant={viewMode === "grid" ? "default" : "ghost"}
-                    size="sm"
-                    onClick={() => setViewMode("grid")}
-                  >
-                    <Grid3X3 className="h-4 w-4" />
-                  </Button>
-                </div>
-              </div>
-            </div>
-
-            {showFilters && (
-              <Card>
-                <CardContent className="pt-6">
-                  <div className="grid gap-4 md:grid-cols-4">
-                    <div>
-                      <Label htmlFor="search">Search files...</Label>
+            <Card className="dark-card">
+              <CardHeader>
+                <CardTitle className="text-white">File Management</CardTitle>
+                <CardDescription className="text-gray-300">View and manage uploaded files</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="flex flex-col sm:flex-row gap-4 mb-6">
+                  <div className="flex-1">
+                    <div className="relative">
+                      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
                       <Input
-                        id="search"
                         placeholder="Search files..."
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
+                        className="pl-10 bg-white/5 border-white/10 text-white placeholder:text-gray-400"
                       />
                     </div>
-                    <div>
-                      <Label htmlFor="status">Status</Label>
-                      <Select value={statusFilter} onValueChange={setStatusFilter}>
-                        <SelectTrigger>
-                          <SelectValue placeholder="All Status" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="all">All Status</SelectItem>
-                          <SelectItem value="completed">Completed</SelectItem>
-                          <SelectItem value="processing">Processing</SelectItem>
-                          <SelectItem value="failed">Failed</SelectItem>
-                          <SelectItem value="pending_review">Pending Review</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div>
-                      <Label htmlFor="type">Type</Label>
-                      <Select value={typeFilter} onValueChange={setTypeFilter}>
-                        <SelectTrigger>
-                          <SelectValue placeholder="All Types" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="all">All Types</SelectItem>
-                          <SelectItem value="csv">CSV</SelectItem>
-                          <SelectItem value="excel">Excel</SelectItem>
-                          <SelectItem value="xml">XML</SelectItem>
-                          <SelectItem value="pdf">PDF</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
                   </div>
-                </CardContent>
-              </Card>
-            )}
+                  <Select value={statusFilter} onValueChange={setStatusFilter}>
+                    <SelectTrigger className="w-[180px] bg-white/5 border-white/10 text-white">
+                      <SelectValue placeholder="Filter by status" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-gray-900 border-white/10">
+                      <SelectItem value="all">All Status</SelectItem>
+                      <SelectItem value="completed">Completed</SelectItem>
+                      <SelectItem value="processing">Processing</SelectItem>
+                      <SelectItem value="failed">Failed</SelectItem>
+                      <SelectItem value="queued">Queued</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
 
-            {selectedFiles.length > 0 && (
-              <Card>
-                <CardContent className="pt-6">
-                  <div className="flex items-center space-x-2">
-                    <span className="text-sm font-medium">Bulk Actions:</span>
-                    <Button size="sm" variant="outline" onClick={() => handleBulkAction("download")}>
-                      <Download className="h-4 w-4 mr-1" />
-                      Download
-                    </Button>
-                    {userIsAdmin && (
-                      <>
-                        <Button size="sm" variant="outline" onClick={() => handleBulkAction("approve")}>
-                          <CheckCircle className="h-4 w-4 mr-1" />
-                          Approve
-                        </Button>
-                        <Button size="sm" variant="outline" onClick={() => handleBulkAction("reject")}>
-                          <XCircle className="h-4 w-4 mr-1" />
-                          Reject
-                        </Button>
-                      </>
-                    )}
-                    <Button size="sm" variant="outline" onClick={() => handleBulkAction("delete")}>
-                      <Trash2 className="h-4 w-4 mr-1" />
-                      Delete
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            )}
-
-            <Card>
-              <CardContent className="p-0">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead className="w-12">
-                        <Checkbox
-                          checked={selectedFiles.length === filteredFiles.length}
-                          onCheckedChange={handleSelectAll}
-                        />
-                      </TableHead>
-                      <TableHead>Name</TableHead>
-                      <TableHead>Type</TableHead>
-                      <TableHead>Size</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Records</TableHead>
-                      <TableHead>Quality</TableHead>
-                      <TableHead>Upload Date</TableHead>
-                      <TableHead className="w-12"></TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {filteredFiles.map((file) => (
-                      <TableRow key={file.id}>
-                        <TableCell>
-                          <Checkbox
-                            checked={selectedFiles.includes(file.id)}
-                            onCheckedChange={() => handleFileSelect(file.id)}
-                          />
-                        </TableCell>
-                        <TableCell className="font-medium">
-                          <div className="flex items-center space-x-2">
-                            <FileText className="h-4 w-4" />
-                            <span>{file.name}</span>
-                          </div>
-                        </TableCell>
-                        <TableCell>{file.type}</TableCell>
-                        <TableCell>{file.size}</TableCell>
-                        <TableCell>
-                          <div className="flex items-center space-x-2">
-                            {getStatusIcon(file.status)}
-                            {getStatusBadge(file.status)}
-                          </div>
-                        </TableCell>
-                        <TableCell>{file.records.toLocaleString()}</TableCell>
-                        <TableCell>
-                          <div className="flex items-center space-x-2">
-                            <Progress value={file.quality} className="w-16" />
-                            <span className="text-sm">{file.quality}%</span>
-                          </div>
-                        </TableCell>
-                        <TableCell>{file.uploadDate}</TableCell>
-                        <TableCell>
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" size="sm">
-                                <MoreHorizontal className="h-4 w-4" />
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                              <DropdownMenuItem>
-                                <Eye className="h-4 w-4 mr-2" />
-                                Preview
-                              </DropdownMenuItem>
-                              <DropdownMenuItem>
-                                <Download className="h-4 w-4 mr-2" />
-                                Download
-                              </DropdownMenuItem>
-                              {userIsAdmin && file.status === "pending_review" && (
-                                <>
-                                  <DropdownMenuSeparator />
-                                  <DropdownMenuItem onClick={() => handleStatusChange(file.id, "completed")}>
-                                    <CheckCircle className="h-4 w-4 mr-2" />
-                                    Approve
-                                  </DropdownMenuItem>
-                                  <DropdownMenuItem onClick={() => handleStatusChange(file.id, "failed")}>
-                                    <XCircle className="h-4 w-4 mr-2" />
-                                    Reject
-                                  </DropdownMenuItem>
-                                </>
-                              )}
-                              <DropdownMenuSeparator />
-                              <DropdownMenuItem className="text-red-600">
-                                <Trash2 className="h-4 w-4 mr-2" />
-                                Delete
-                              </DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-                        </TableCell>
+                <div className="rounded-md border border-white/10 overflow-hidden">
+                  <Table>
+                    <TableHeader className="bg-white/5">
+                      <TableRow className="border-white/10">
+                        <TableHead className="text-gray-300">File Name</TableHead>
+                        <TableHead className="text-gray-300">Size</TableHead>
+                        <TableHead className="text-gray-300">Status</TableHead>
+                        <TableHead className="text-gray-300">Quality</TableHead>
+                        <TableHead className="text-gray-300">Uploaded</TableHead>
+                        <TableHead className="text-gray-300">Actions</TableHead>
                       </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+                    </TableHeader>
+                    <TableBody>
+                      {filteredFiles.map((file) => (
+                        <TableRow key={file.id} className="border-white/10 hover:bg-white/5">
+                          <TableCell className="font-medium text-white">
+                            <div className="flex items-center">
+                              {getStatusIcon(file.status)}
+                              <span className="ml-2">{file.name}</span>
+                            </div>
+                          </TableCell>
+                          <TableCell className="text-gray-300">{(file.size / 1024 / 1024).toFixed(2)} MB</TableCell>
+                          <TableCell>{getStatusBadge(file.status)}</TableCell>
+                          <TableCell className="text-gray-300">
+                            {file.qualityScore ? `${file.qualityScore}%` : "-"}
+                          </TableCell>
+                          <TableCell className="text-gray-300">{file.uploadedAt.toLocaleDateString()}</TableCell>
+                          <TableCell>
+                            <div className="flex space-x-2">
+                              <Button size="sm" variant="ghost" className="text-blue-400 hover:bg-blue-400/10">
+                                <Download className="h-4 w-4" />
+                              </Button>
+                              {userRole === "admin" && (
+                                <Button size="sm" variant="ghost" className="text-red-400 hover:bg-red-400/10">
+                                  <XCircle className="h-4 w-4" />
+                                </Button>
+                              )}
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
               </CardContent>
             </Card>
           </TabsContent>
 
-          {/* Analytics Tab */}
           <TabsContent value="analytics" className="space-y-6">
-            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Total Records</CardTitle>
-                  <Database className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">45,230</div>
-                  <p className="text-xs text-muted-foreground">+12% from last month</p>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Processing Time</CardTitle>
-                  <Clock className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">2.3 hours</div>
-                  <p className="text-xs text-muted-foreground">-8% from last month</p>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Storage Used</CardTitle>
-                  <Archive className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">234 GB</div>
-                  <p className="text-xs text-muted-foreground">+23% from last month</p>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">API Calls</CardTitle>
-                  <Zap className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">12,450</div>
-                  <p className="text-xs text-muted-foreground">+5% from last month</p>
-                </CardContent>
-              </Card>
-            </div>
-
-            <div className="grid gap-6 md:grid-cols-2">
-              <Card>
-                <CardHeader>
-                  <CardTitle>File Processing Trends</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="h-64 flex items-center justify-center text-muted-foreground">
-                    <div className="text-center">
-                      <BarChart3 className="h-12 w-12 mx-auto mb-2" />
-                      <p>Chart visualization would go here</p>
-                      <p className="text-sm">Integration with charting library needed</p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardHeader>
-                  <CardTitle>Data Quality Distribution</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="h-64 flex items-center justify-center text-muted-foreground">
-                    <div className="text-center">
-                      <BarChart3 className="h-12 w-12 mx-auto mb-2" />
-                      <p>Pie chart visualization would go here</p>
-                      <p className="text-sm">Integration with charting library needed</p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between">
-                <CardTitle className="flex items-center gap-2">
-                  <Database className="h-5 w-5" />
-                  Supabase Data (1)
-                </CardTitle>
-                <Button variant="outline" size="sm">
-                  <RefreshCw className="h-4 w-4 mr-2" />
-                  Refresh
-                </Button>
+            <Card className="dark-card">
+              <CardHeader>
+                <CardTitle className="text-white">Analytics Dashboard</CardTitle>
+                <CardDescription className="text-gray-300">Data processing insights and trends</CardDescription>
               </CardHeader>
               <CardContent>
-                <p className="text-sm text-muted-foreground mb-4">All articles stored in your Supabase database</p>
-                <DataViewer />
+                <div className="text-center py-12">
+                  <BarChart3 className="h-16 w-16 mx-auto text-gray-400 mb-4" />
+                  <p className="text-gray-400">Analytics dashboard coming soon...</p>
+                </div>
               </CardContent>
             </Card>
-
-            <div className="grid gap-6 md:grid-cols-2">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Database Status</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <DatabaseStatus />
-                </CardContent>
-              </Card>
-              <Card>
-                <CardHeader>
-                  <CardTitle>Data Details</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-sm text-muted-foreground">Select an item to view details</p>
-                </CardContent>
-              </Card>
-            </div>
           </TabsContent>
 
-          {/* Quality Tab */}
           <TabsContent value="quality" className="space-y-6">
-            <DataQualityMetrics />
+            <Card className="dark-card">
+              <CardHeader>
+                <CardTitle className="text-white">Data Quality</CardTitle>
+                <CardDescription className="text-gray-300">Monitor and improve data quality metrics</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="text-center py-12">
+                  <Shield className="h-16 w-16 mx-auto text-gray-400 mb-4" />
+                  <p className="text-gray-400">Quality metrics dashboard coming soon...</p>
+                </div>
+              </CardContent>
+            </Card>
           </TabsContent>
 
-          {/* Settings Tab */}
           <TabsContent value="settings" className="space-y-6">
-            <div className="grid gap-6 md:grid-cols-2">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Settings className="h-5 w-5" />
-                    General Settings
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
+            <Card className="dark-card">
+              <CardHeader>
+                <CardTitle className="text-white">Settings</CardTitle>
+                <CardDescription className="text-gray-300">Configure your data ingestion preferences</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div className="space-y-4">
                   <div className="flex items-center justify-between">
                     <div>
-                      <Label htmlFor="auto-refresh">Auto Refresh</Label>
-                      <p className="text-sm text-muted-foreground">Automatically refresh data every 30 seconds</p>
+                      <Label className="text-white">Auto-process uploads</Label>
+                      <p className="text-sm text-gray-400">Automatically process files after upload</p>
                     </div>
-                    <Switch id="auto-refresh" checked={autoRefresh} onCheckedChange={setAutoRefresh} />
+                    <Switch />
                   </div>
-                  <Separator />
+                  <Separator className="bg-white/10" />
                   <div className="flex items-center justify-between">
                     <div>
-                      <Label htmlFor="notifications">Notifications</Label>
-                      <p className="text-sm text-muted-foreground">Receive notifications for processing updates</p>
+                      <Label className="text-white">Email notifications</Label>
+                      <p className="text-sm text-gray-400">Receive email updates on processing status</p>
                     </div>
-                    <Switch id="notifications" checked={notifications} onCheckedChange={setNotifications} />
+                    <Switch />
                   </div>
-                </CardContent>
-              </Card>
-
-              {userIsAdmin && (
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <Shield className="h-5 w-5" />
-                      Admin Settings
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
+                  <Separator className="bg-white/10" />
+                  <div className="flex items-center justify-between">
                     <div>
-                      <Label>Review Workflow</Label>
-                      <p className="text-sm text-muted-foreground mb-2">Configure automatic review settings</p>
-                      <Select defaultValue="manual">
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="manual">Manual Review</SelectItem>
-                          <SelectItem value="auto">Auto-approve CSV/JSON</SelectItem>
-                          <SelectItem value="strict">Review All Files</SelectItem>
-                        </SelectContent>
-                      </Select>
+                      <Label className="text-white">Duplicate detection</Label>
+                      <p className="text-sm text-gray-400">Automatically detect and flag duplicate records</p>
                     </div>
-                    <Separator />
-                    <div>
-                      <Label>User Management</Label>
-                      <p className="text-sm text-muted-foreground mb-2">Manage user permissions and roles</p>
-                      <Button variant="outline" size="sm">
-                        <Users className="h-4 w-4 mr-2" />
-                        Manage Users
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-              )}
-            </div>
+                    <Switch defaultChecked />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
           </TabsContent>
         </Tabs>
-      </main>
+      </div>
     </div>
   )
 }

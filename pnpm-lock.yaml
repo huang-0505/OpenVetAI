@@ -13,7 +13,7 @@ importers:
         version: 0.0.66(zod@3.25.76)
       '@clerk/nextjs':
         specifier: latest
-        version: 6.25.3(next@15.2.4(@opentelemetry/api@1.9.0)(react-dom@19.0.0(react@19.0.0))(react@19.0.0))(react-dom@19.0.0(react@19.0.0))(react@19.0.0)
+        version: 6.25.4(next@15.2.4(@opentelemetry/api@1.9.0)(react-dom@19.0.0(react@19.0.0))(react@19.0.0))(react-dom@19.0.0(react@19.0.0))(react@19.0.0)
       '@neondatabase/serverless':
         specifier: ^0.10.1
         version: 0.10.1
@@ -100,7 +100,7 @@ importers:
         version: 1.2.7(@types/react-dom@18.0.0)(@types/react@18.0.0)(react-dom@19.0.0(react@19.0.0))(react@19.0.0)
       '@supabase/supabase-js':
         specifier: latest
-        version: 2.51.0
+        version: 2.52.0
       '@types/node':
         specifier: ^20
         version: 20.0.0
@@ -146,6 +146,9 @@ importers:
       react-dom:
         specifier: ^19
         version: 19.0.0(react@19.0.0)
+      react-dropzone:
+        specifier: latest
+        version: 14.3.8(react@19.0.0)
       react-hook-form:
         specifier: latest
         version: 7.60.0(react@19.0.0)
@@ -294,27 +297,27 @@ packages:
     resolution: {integrity: sha512-x0LvFTekgSX+83TI28Y9wYPUfzrnl2aT5+5QLnO6v7mSJYtEEevuDRN0F0uSHRk1G1IWZC43o00Y0xDDrpBGPQ==}
     engines: {node: '>=6.9.0'}
 
-  '@clerk/backend@2.4.5':
-    resolution: {integrity: sha512-fz7svO77uEzN1gCmvVD/WSL89LGX/BEeFFBYKTNL4272e9aa6mds+MYrR6cFlL+DVDZwPEYKYS9cpN3ZFwhY0Q==}
+  '@clerk/backend@2.5.0':
+    resolution: {integrity: sha512-QLCpd3GVOKrTsDWVcn/F5TUKHXFG1Bgb9gjAYuQPjtzoyqcGwITYcYLZFb273KDGvaqaUgrEKhJprSEpbKwY1Q==}
     engines: {node: '>=18.17.0'}
 
-  '@clerk/clerk-react@5.35.2':
-    resolution: {integrity: sha512-A/1SW8iDTYEGghAGrqqREUNBY4zv5ruOI64aYSOjl5emupkS4MWI9Y3o4EtI2hwpEBjuxPQFEXJSyAm2NmKGfQ==}
+  '@clerk/clerk-react@5.35.3':
+    resolution: {integrity: sha512-rtNBb0pAHRt9SCS2s2KEPxmAIH55aYRmsv12pxuqk/Au5sGqNzkDKoAZ52JP2MHEgvT3RwFmXzGKOwMjsvIyyg==}
     engines: {node: '>=18.17.0'}
     peerDependencies:
       react: ^18.0.0 || ^19.0.0 || ^19.0.0-0
       react-dom: ^18.0.0 || ^19.0.0 || ^19.0.0-0
 
-  '@clerk/nextjs@6.25.3':
-    resolution: {integrity: sha512-Ly1mHniGkQ5x0c4JDarxkheY3E98gD3y18NAaHVTRbwHZZ29YkRtR0GcK6F48EpQ1Xy90Zcrb313CIOnpNrBCg==}
+  '@clerk/nextjs@6.25.4':
+    resolution: {integrity: sha512-FF1C2kN3avlrd9fCQ0qs6aBR9YMY5JjQXybde5amShGqdQDv0w5b7kuTLwxIak6vr24j3xY6N3pjpZyD2XYm5w==}
     engines: {node: '>=18.17.0'}
     peerDependencies:
       next: ^13.5.7 || ^14.2.25 || ^15.2.3
       react: ^18.0.0 || ^19.0.0 || ^19.0.0-0
       react-dom: ^18.0.0 || ^19.0.0 || ^19.0.0-0
 
-  '@clerk/shared@3.12.3':
-    resolution: {integrity: sha512-UOk/Ie/DhWPL+Mkxbp6jziiNOJgGfDhsZt8EbRJOYvml8K6imrd3JE8L2/AzXLu4ZEh31S6yibBqaqWZMVLFbQ==}
+  '@clerk/shared@3.13.0':
+    resolution: {integrity: sha512-M/AIVt/9m7vIlWNHlki2fuS8HO3jnbHy7EDu86VWd6JBaFRbBs2z67nwwo8dtlLDD6l/GdjTPh+a/B7UnY1Qrw==}
     engines: {node: '>=18.17.0'}
     peerDependencies:
       react: ^18.0.0 || ^19.0.0 || ^19.0.0-0
@@ -325,8 +328,8 @@ packages:
       react-dom:
         optional: true
 
-  '@clerk/types@4.67.0':
-    resolution: {integrity: sha512-m55X2BFYJZ+kc/TktZU8+gPYqKzGQCIAbE5rZKnx+Dn5d8J8x3u0/3hkE6Pr+hxAmIFs1ZFMMHND7EkLz9T80w==}
+  '@clerk/types@4.68.0':
+    resolution: {integrity: sha512-3+PoGGQgyzLZibzYleByPmx6dfPVoFUjLBy+kASHzF9g3o12WchDn1aI01vN7WNm1ik1Z5sbLhzJs8d9bz38EQ==}
     engines: {node: '>=18.17.0'}
 
   '@date-fns/tz@1.2.0':
@@ -1236,8 +1239,8 @@ packages:
   '@standard-schema/utils@0.3.0':
     resolution: {integrity: sha512-e7Mew686owMaPJVNNLs55PUvgz371nKgwsc4vxE49zsODpJEnxgxRo2y/OKrqueavXgZNMDVj3DdHFlaSAeU8g==}
 
-  '@supabase/auth-js@2.71.0':
-    resolution: {integrity: sha512-OMYNbhGa1Cj4stalJq0VoHm5l7Sj/xY0j9CiYEQCikbQmtiDG3c27EIFA4OD+NxuoHTZmjaW8VJlS3SP+yasEA==}
+  '@supabase/auth-js@2.71.1':
+    resolution: {integrity: sha512-mMIQHBRc+SKpZFRB2qtupuzulaUhFYupNyxqDj5Jp/LyPvcWvjaJzZzObv6URtL/O6lPxkanASnotGtNpS3H2Q==}
 
   '@supabase/functions-js@2.4.5':
     resolution: {integrity: sha512-v5GSqb9zbosquTo6gBwIiq7W9eQ7rE5QazsK/ezNiQXdCbY+bH8D9qEaBIkhVvX4ZRW5rP03gEfw5yw9tiq4EQ==}
@@ -1255,8 +1258,8 @@ packages:
   '@supabase/storage-js@2.7.1':
     resolution: {integrity: sha512-asYHcyDR1fKqrMpytAS1zjyEfvxuOIp1CIXX7ji4lHHcJKqyk+sLl/Vxgm4sN6u8zvuUtae9e4kDxQP2qrwWBA==}
 
-  '@supabase/supabase-js@2.51.0':
-    resolution: {integrity: sha512-jG70XoNFcX3z0h/No0t1Aoc3zoHPtMQk5zaM5v3+sCJ/v5Z3qyoHYkGIg1JUycINPsuuAASZ4ZS43YO6H5wMoA==}
+  '@supabase/supabase-js@2.52.0':
+    resolution: {integrity: sha512-jbs3CV1f2+ge7sgBeEduboT9v/uGjF22v0yWi/5/XFn5tbM8MfWRccsMtsDwAwu24XK8H6wt2LJDiNnZLtx/bg==}
 
   '@sveltejs/acorn-typescript@1.0.5':
     resolution: {integrity: sha512-IwQk4yfwLdibDlrXVE04jTZYlLnwsTT2PIOQQGNLWfjavGifnk1JD1LcZjZaBTRcxZu2FfPfNLOE04DSu9lqtQ==}
@@ -1638,6 +1641,10 @@ packages:
     resolution: {integrity: sha512-hsU18Ae8CDTR6Kgu9DYf0EbCr/a5iGL0rytQDobUcdpYOKokk8LEjVphnXkDkgpi0wYVsqrXuP0bZxJaTqdgoA==}
     engines: {node: '>= 0.4'}
 
+  attr-accept@2.2.5:
+    resolution: {integrity: sha512-0bDNnY/u6pPwHDMoF0FieU354oBi0a8rD9FcsLwzcGWbc8KS8KPIi7y+s13OlVY+gMWc/9xEMUgNE6Qm8ZllYQ==}
+    engines: {node: '>=4'}
+
   available-typed-arrays@1.0.7:
     resolution: {integrity: sha512-wvUjBtSGN7+7SjNpq/9M2Tg350UZD3q62IFZLbRAR1bSMlCo1ZaeW+BJ+D090e4hIIZLBcTDWe4Mh4jvUDajzQ==}
     engines: {node: '>= 0.4'}
@@ -1701,6 +1708,9 @@ packages:
   chalk@5.4.1:
     resolution: {integrity: sha512-zgVZuo2WcZgfUEmsn6eO3kINexW8RAE4maiQ8QNs8CtpPCSyMiYsULR3HQYkm3w8FIA3SberyMJMSldGsW+U3w==}
     engines: {node: ^12.17.0 || ^14.13 || >=16.0.0}
+
+  change-case@5.4.4:
+    resolution: {integrity: sha512-HRQyTk2/YPEkt9TnUPbOpr64Uw3KOicFWPVBb+xiHvd6eBx/qPr9xqfBFDT8P2vWsvvz4jbEkfDe71W3VyNu2w==}
 
   chokidar@3.6.0:
     resolution: {integrity: sha512-7VT13fmjotKpGipCW9JEQAusEPE+Ei8nl6/g4FBAmIm0GOOLMua9NDDo/DWp0ZAxCr3cPq5ZpBqmPAQgDda2Pw==}
@@ -1882,9 +1892,6 @@ packages:
   doctrine@3.0.0:
     resolution: {integrity: sha512-yS+Q5i3hBf7GBkd4KG8a7eBNNWNGLTaEwwYWUijIYM7zrlYDM0BFXHjjPWlWZ1Rg7UaddZeIDmi9jF3HmqiQ2w==}
     engines: {node: '>=6.0.0'}
-
-  dot-case@3.0.4:
-    resolution: {integrity: sha512-Kv5nKlh6yRrdrGvxeJ2e5y2eRUpkUosIW4A2AS38zwSz27zu7ufDwQPi5Jhs3XAlGNetl3bmnGhQsMtkKJnj3w==}
 
   dunder-proto@1.0.1:
     resolution: {integrity: sha512-KIN/nDJBQRcXw0MLVhZE9iQHmG68qAVIBg9CqmUYjmQIhgij9U5MFvrqkUL5FbtyyzZuOeOt0zdeRe4UY7ct+A==}
@@ -2131,6 +2138,10 @@ packages:
   file-entry-cache@6.0.1:
     resolution: {integrity: sha512-7Gps/XWymbLk2QLYK4NzpMOrYjMhdIxXuIvy2QBsLE6ljuodKvdkWs/cpyJJ3CVIVpH0Oi1Hvg1ovbMzLdFBBg==}
     engines: {node: ^10.12.0 || >=12.0.0}
+
+  file-selector@2.1.2:
+    resolution: {integrity: sha512-QgXo+mXTe8ljeqUFaX3QVHc5osSItJ/Km+xpocx0aSqWGMSCf6qYs/VnzZgS864Pjn5iceMRFigeAV7AfTlaig==}
+    engines: {node: '>= 12'}
 
   fill-range@7.1.1:
     resolution: {integrity: sha512-YsGpe3WHLK8ZYi4tWDg2Jy3ebRz2rXowDxnld4bkQB00cc/1Zw9AWnC0i9ztDJitivtQvaI9KaLyKrc+hBW0yg==}
@@ -2506,9 +2517,6 @@ packages:
     resolution: {integrity: sha512-lyuxPGr/Wfhrlem2CL/UcnUc1zcqKAImBDzukY7Y5F/yQiNdko6+fRLevlw1HgMySw7f611UIY408EtxRSoK3Q==}
     hasBin: true
 
-  lower-case@2.0.2:
-    resolution: {integrity: sha512-7fm3l3NAF9WfN6W3JOmf5drwpVqX78JtoGJ3A6W0a6ZnldM41w2fV5D490psKFTpMds8TJse/eHLFFsNHHjHgg==}
-
   lru-cache@10.4.3:
     resolution: {integrity: sha512-JNAzZcXrCt42VGLuYz0zfAzDfAvJWW6AfYlDBQyDV5DClI2m5sAmK+OIO7s59XfsRsWHp02jAJrRadPRGTt6SQ==}
 
@@ -2520,9 +2528,9 @@ packages:
   magic-string@0.30.17:
     resolution: {integrity: sha512-sNPKHvyjVf7gyjwS4xGTaW/mCnF8wnjtifKBEhxfZ7E/S8tQ0rssrwGNn6q8JH/ohItJfSQp9mBtQYuTlH5QnA==}
 
-  map-obj@4.3.0:
-    resolution: {integrity: sha512-hdN1wVrZbb29eBGiGjJbeP8JbKjq1urkHJ/LIP/NY48MZ1QVXUsQBV1G1zvYFHn1XE06cwjBsOI2K3Ulnj1YXQ==}
-    engines: {node: '>=8'}
+  map-obj@5.0.2:
+    resolution: {integrity: sha512-K6K2NgKnTXimT3779/4KxSvobxOtMmx1LBZ3NwRxT/MDIR3Br/fQ4Q+WCX5QxjyUR8zg5+RV9Tbf2c5pAWTD2A==}
+    engines: {node: ^12.20.0 || ^14.13.1 || >=16.0.0}
 
   math-intrinsics@1.1.0:
     resolution: {integrity: sha512-/IXtbwEk5HTPyEwyKX6hGkYXxM9nbj64B+ilVJnC/R6B0pH5G4V3b0pVbL7DBj4tkhBAppbQUlf6F6Xl9LHu1g==}
@@ -2600,9 +2608,6 @@ packages:
         optional: true
       sass:
         optional: true
-
-  no-case@3.0.4:
-    resolution: {integrity: sha512-fgAN3jGAh+RoxUGZHTSOLJIqUc2wmoBwGR4tbpNAKmmovFoWq0OdRkb0VkldReO2a2iBT/OEulG9XSUc10r3zg==}
 
   normalize-path@3.0.0:
     resolution: {integrity: sha512-6eZs5Ls3WtCisHWp9S2GUy8dqkpGi4BVSz3GaqiE6ezub0512ESztXUwUB6C6IKbQkY2Pnb/mD4WYojCRwcwLA==}
@@ -2815,6 +2820,12 @@ packages:
     peerDependencies:
       react: ^19.0.0
 
+  react-dropzone@14.3.8:
+    resolution: {integrity: sha512-sBgODnq+lcA4P296DY4wacOZz3JFpD99fp+hb//iBO2HHnyeZU3FwWyXJ6salNpqQdsZrgMrotuko/BdJMV8Ug==}
+    engines: {node: '>= 10.13'}
+    peerDependencies:
+      react: '>= 16.8 || 18.0.0'
+
   react-hook-form@7.60.0:
     resolution: {integrity: sha512-SBrYOvMbDB7cV8ZfNpaiLcgjH/a1c7aK0lK+aNigpf4xWLO8q+o4tcvVurv3c4EOyzn/3dCsYt4GKD42VvJ/+A==}
     engines: {node: '>=18.0.0'}
@@ -3019,12 +3030,9 @@ packages:
   simple-swizzle@0.2.2:
     resolution: {integrity: sha512-JA//kQgZtbuY83m+xT+tXJkmJncGMTFT+C+g2h2R9uxkYIrE2yy9sgmcLhCnw57/WSD+Eh3J97FPEDFnbXnDUg==}
 
-  snake-case@3.0.4:
-    resolution: {integrity: sha512-LAOh4z89bGQvl9pFfNF8V146i7o7/CqFPbqzYgP+yYzDIDeS9HaNFtXABamRW+AQzEVODcvE79ljJ+8a9YSdMg==}
-
-  snakecase-keys@8.0.1:
-    resolution: {integrity: sha512-Sj51kE1zC7zh6TDlNNz0/Jn1n5HiHdoQErxO8jLtnyrkJW/M5PrI7x05uDgY3BO7OUQYKCvmeMurW6BPUdwEOw==}
-    engines: {node: '>=18'}
+  snakecase-keys@9.0.1:
+    resolution: {integrity: sha512-VWfQzbinvXqcyoaTubrZZvZaB8P3mIowxqWGs4sCq7QZ+Y5BYyO1wY1neRJd72jpOBRgqubBTqN+mWIXImaVXg==}
+    engines: {node: '>=22'}
 
   sonner@2.0.6:
     resolution: {integrity: sha512-yHFhk8T/DK3YxjFQXIrcHT1rGEeTLliVzWbO0xN8GberVun2RiBnxAjXAYpZrqwEVHBG9asI/Li8TAAhN9m59Q==}
@@ -3466,41 +3474,41 @@ snapshots:
       '@babel/helper-string-parser': 7.27.1
       '@babel/helper-validator-identifier': 7.27.1
 
-  '@clerk/backend@2.4.5(react-dom@19.0.0(react@19.0.0))(react@19.0.0)':
+  '@clerk/backend@2.5.0(react-dom@19.0.0(react@19.0.0))(react@19.0.0)':
     dependencies:
-      '@clerk/shared': 3.12.3(react-dom@19.0.0(react@19.0.0))(react@19.0.0)
-      '@clerk/types': 4.67.0
+      '@clerk/shared': 3.13.0(react-dom@19.0.0(react@19.0.0))(react@19.0.0)
+      '@clerk/types': 4.68.0
       cookie: 1.0.2
-      snakecase-keys: 8.0.1
+      snakecase-keys: 9.0.1
       standardwebhooks: 1.0.0
       tslib: 2.8.1
     transitivePeerDependencies:
       - react
       - react-dom
 
-  '@clerk/clerk-react@5.35.2(react-dom@19.0.0(react@19.0.0))(react@19.0.0)':
+  '@clerk/clerk-react@5.35.3(react-dom@19.0.0(react@19.0.0))(react@19.0.0)':
     dependencies:
-      '@clerk/shared': 3.12.3(react-dom@19.0.0(react@19.0.0))(react@19.0.0)
-      '@clerk/types': 4.67.0
+      '@clerk/shared': 3.13.0(react-dom@19.0.0(react@19.0.0))(react@19.0.0)
+      '@clerk/types': 4.68.0
       react: 19.0.0
       react-dom: 19.0.0(react@19.0.0)
       tslib: 2.8.1
 
-  '@clerk/nextjs@6.25.3(next@15.2.4(@opentelemetry/api@1.9.0)(react-dom@19.0.0(react@19.0.0))(react@19.0.0))(react-dom@19.0.0(react@19.0.0))(react@19.0.0)':
+  '@clerk/nextjs@6.25.4(next@15.2.4(@opentelemetry/api@1.9.0)(react-dom@19.0.0(react@19.0.0))(react@19.0.0))(react-dom@19.0.0(react@19.0.0))(react@19.0.0)':
     dependencies:
-      '@clerk/backend': 2.4.5(react-dom@19.0.0(react@19.0.0))(react@19.0.0)
-      '@clerk/clerk-react': 5.35.2(react-dom@19.0.0(react@19.0.0))(react@19.0.0)
-      '@clerk/shared': 3.12.3(react-dom@19.0.0(react@19.0.0))(react@19.0.0)
-      '@clerk/types': 4.67.0
+      '@clerk/backend': 2.5.0(react-dom@19.0.0(react@19.0.0))(react@19.0.0)
+      '@clerk/clerk-react': 5.35.3(react-dom@19.0.0(react@19.0.0))(react@19.0.0)
+      '@clerk/shared': 3.13.0(react-dom@19.0.0(react@19.0.0))(react@19.0.0)
+      '@clerk/types': 4.68.0
       next: 15.2.4(@opentelemetry/api@1.9.0)(react-dom@19.0.0(react@19.0.0))(react@19.0.0)
       react: 19.0.0
       react-dom: 19.0.0(react@19.0.0)
       server-only: 0.0.1
       tslib: 2.8.1
 
-  '@clerk/shared@3.12.3(react-dom@19.0.0(react@19.0.0))(react@19.0.0)':
+  '@clerk/shared@3.13.0(react-dom@19.0.0(react@19.0.0))(react@19.0.0)':
     dependencies:
-      '@clerk/types': 4.67.0
+      '@clerk/types': 4.68.0
       dequal: 2.0.3
       glob-to-regexp: 0.4.1
       js-cookie: 3.0.5
@@ -3510,7 +3518,7 @@ snapshots:
       react: 19.0.0
       react-dom: 19.0.0(react@19.0.0)
 
-  '@clerk/types@4.67.0':
+  '@clerk/types@4.68.0':
     dependencies:
       csstype: 3.1.3
 
@@ -4433,7 +4441,7 @@ snapshots:
 
   '@standard-schema/utils@0.3.0': {}
 
-  '@supabase/auth-js@2.71.0':
+  '@supabase/auth-js@2.71.1':
     dependencies:
       '@supabase/node-fetch': 2.6.15
 
@@ -4464,9 +4472,9 @@ snapshots:
     dependencies:
       '@supabase/node-fetch': 2.6.15
 
-  '@supabase/supabase-js@2.51.0':
+  '@supabase/supabase-js@2.52.0':
     dependencies:
-      '@supabase/auth-js': 2.71.0
+      '@supabase/auth-js': 2.71.1
       '@supabase/functions-js': 2.4.5
       '@supabase/node-fetch': 2.6.15
       '@supabase/postgrest-js': 1.19.4
@@ -4901,6 +4909,8 @@ snapshots:
 
   async-function@1.0.0: {}
 
+  attr-accept@2.2.5: {}
+
   available-typed-arrays@1.0.7:
     dependencies:
       possible-typed-array-names: 1.1.0
@@ -4959,6 +4969,8 @@ snapshots:
       supports-color: 7.2.0
 
   chalk@5.4.1: {}
+
+  change-case@5.4.4: {}
 
   chokidar@3.6.0:
     dependencies:
@@ -5132,11 +5144,6 @@ snapshots:
   doctrine@3.0.0:
     dependencies:
       esutils: 2.0.3
-
-  dot-case@3.0.4:
-    dependencies:
-      no-case: 3.0.4
-      tslib: 2.8.1
 
   dunder-proto@1.0.1:
     dependencies:
@@ -5527,6 +5534,10 @@ snapshots:
     dependencies:
       flat-cache: 3.2.0
 
+  file-selector@2.1.2:
+    dependencies:
+      tslib: 2.8.1
+
   fill-range@7.1.1:
     dependencies:
       to-regex-range: 5.0.1
@@ -5907,10 +5918,6 @@ snapshots:
     dependencies:
       js-tokens: 4.0.0
 
-  lower-case@2.0.2:
-    dependencies:
-      tslib: 2.8.1
-
   lru-cache@10.4.3: {}
 
   lucide-react@0.454.0(react@19.0.0):
@@ -5921,7 +5928,7 @@ snapshots:
     dependencies:
       '@jridgewell/sourcemap-codec': 1.5.4
 
-  map-obj@4.3.0: {}
+  map-obj@5.0.2: {}
 
   math-intrinsics@1.1.0: {}
 
@@ -5990,11 +5997,6 @@ snapshots:
     transitivePeerDependencies:
       - '@babel/core'
       - babel-plugin-macros
-
-  no-case@3.0.4:
-    dependencies:
-      lower-case: 2.0.2
-      tslib: 2.8.1
 
   normalize-path@3.0.0: {}
 
@@ -6194,6 +6196,13 @@ snapshots:
     dependencies:
       react: 19.0.0
       scheduler: 0.25.0
+
+  react-dropzone@14.3.8(react@19.0.0):
+    dependencies:
+      attr-accept: 2.2.5
+      file-selector: 2.1.2
+      prop-types: 15.8.1
+      react: 19.0.0
 
   react-hook-form@7.60.0(react@19.0.0):
     dependencies:
@@ -6447,15 +6456,10 @@ snapshots:
       is-arrayish: 0.3.2
     optional: true
 
-  snake-case@3.0.4:
+  snakecase-keys@9.0.1:
     dependencies:
-      dot-case: 3.0.4
-      tslib: 2.8.1
-
-  snakecase-keys@8.0.1:
-    dependencies:
-      map-obj: 4.3.0
-      snake-case: 3.0.4
+      change-case: 5.4.4
+      map-obj: 5.0.2
       type-fest: 4.41.0
 
   sonner@2.0.6(react-dom@19.0.0(react@19.0.0))(react@19.0.0):
