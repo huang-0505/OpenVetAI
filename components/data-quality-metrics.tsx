@@ -309,14 +309,36 @@ export function DataQualityMetrics() {
         <CardHeader>
           <CardTitle className="text-white flex items-center">
             <Shield className="h-5 w-5 mr-2" />
-            Data Quality Metrics
+            Data Quality Overview
           </CardTitle>
-          <CardDescription className="text-slate-300">Monitor and improve your data quality scores</CardDescription>
+          <CardDescription className="text-slate-400">Monitor the quality of your processed data</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="text-slate-300">
-            <p>Quality metrics dashboard coming soon...</p>
-            <p className="text-sm text-slate-400 mt-2">Track data completeness, accuracy, and consistency metrics.</p>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="bg-gradient-to-br from-green-600/20 to-green-500/10 p-4 rounded-lg border border-green-500/20">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-sm text-slate-400">Overall Quality</span>
+                <TrendingUp className="h-4 w-4 text-green-400" />
+              </div>
+              <div className="text-2xl font-bold text-green-400 mb-2">92%</div>
+              <Progress value={92} className="h-2" />
+            </div>
+            <div className="bg-gradient-to-br from-blue-600/20 to-blue-500/10 p-4 rounded-lg border border-blue-500/20">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-sm text-slate-400">Completeness</span>
+                <TrendingUp className="h-4 w-4 text-blue-400" />
+              </div>
+              <div className="text-2xl font-bold text-blue-400 mb-2">88%</div>
+              <Progress value={88} className="h-2" />
+            </div>
+            <div className="bg-gradient-to-br from-yellow-600/20 to-yellow-500/10 p-4 rounded-lg border border-yellow-500/20">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-sm text-slate-400">Accuracy</span>
+                <TrendingUp className="h-4 w-4 text-yellow-400" />
+              </div>
+              <div className="text-2xl font-bold text-yellow-400 mb-2">95%</div>
+              <Progress value={95} className="h-2" />
+            </div>
           </div>
         </CardContent>
       </Card>

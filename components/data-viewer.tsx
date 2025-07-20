@@ -69,15 +69,24 @@ export function DataViewer() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Data List */}
         <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Database className="h-5 w-5" />
-              Supabase Data ({data.length})
-              <Button variant="ghost" size="sm" onClick={loadData} disabled={isLoading} className="ml-auto">
-                <RefreshCw className={`h-4 w-4 ${isLoading ? "animate-spin" : ""}`} />
-              </Button>
-            </CardTitle>
-            <CardDescription>All articles stored in your Supabase database</CardDescription>
+          <CardHeader className="flex flex-row items-center justify-between">
+            <div>
+              <CardTitle className="flex items-center gap-2">
+                <Database className="h-5 w-5" />
+                Supabase Data ({data.length})
+              </CardTitle>
+              <CardDescription>All articles stored in your Supabase database</CardDescription>
+            </div>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={loadData}
+              disabled={isLoading}
+              className="ml-auto border-slate-600 text-slate-300 bg-transparent"
+            >
+              <RefreshCw className={`h-4 w-4 ${isLoading ? "animate-spin" : ""}`} />
+              Refresh
+            </Button>
           </CardHeader>
           <CardContent>
             <div className="space-y-2">
@@ -197,8 +206,9 @@ export function DataViewer() {
               </ScrollArea>
             ) : (
               <div className="text-center py-12">
-                <Database className="h-12 w-12 text-gray-300 mx-auto mb-4" />
-                <p className="text-gray-500">Select an item to view its details</p>
+                <Database className="h-16 w-16 text-slate-500 mx-auto mb-4" />
+                <p className="text-slate-400">No data to display</p>
+                <p className="text-sm text-slate-500 mt-2">Upload and process files to see data here</p>
               </div>
             )}
           </CardContent>

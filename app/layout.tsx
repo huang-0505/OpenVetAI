@@ -20,24 +20,7 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <ClerkProvider
-      publishableKey={process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY}
-      appearance={{
-        baseTheme: undefined,
-        variables: {
-          colorPrimary: "#3b82f6",
-          colorBackground: "#0f172a",
-          colorInputBackground: "#1e293b",
-          colorInputText: "#f1f5f9",
-        },
-        elements: {
-          formButtonPrimary: "bg-blue-600 hover:bg-blue-700 text-white",
-          card: "bg-slate-900 border-slate-700",
-          headerTitle: "text-white",
-          headerSubtitle: "text-slate-300",
-        },
-      }}
-    >
+    <ClerkProvider>
       <html lang="en" suppressHydrationWarning>
         <body className={inter.className}>
           <ThemeProvider attribute="class" defaultTheme="dark" enableSystem disableTransitionOnChange>
