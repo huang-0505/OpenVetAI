@@ -89,6 +89,72 @@ export default function HomePage() {
     }
   }, [user, toast])
 
+  // Add test pending files for demo
+  const addTestPendingFiles = useCallback(async () => {
+    if (!isAdmin || !user) return
+
+    try {
+      const testFiles = [
+        {
+          name: "test-pending-file-1.txt",
+          type: "case-report",
+          source: "upload",
+          original_content: "This is a test file that needs admin approval. It contains veterinary case study data.",
+          processed_content: JSON.stringify({
+            summary: "Test veterinary case study requiring approval",
+            keyPoints: ["Test data point 1", "Test data point 2"],
+            metadata: { fileType: "case-report", confidence: 0.95 },
+          }),
+          extracted_data: {
+            summary: "Test veterinary case study requiring approval",
+            keyPoints: ["Test data point 1", "Test data point 2"],
+            metadata: { fileType: "case-report", confidence: 0.95 },
+          },
+          labels: ["veterinary", "test"],
+          status: "pending",
+          user_id: "test-user-id",
+          uploaded_by: "test@example.com",
+        },
+        {
+          name: "test-pending-file-2.txt",
+          type: "research-paper",
+          source: "upload",
+          original_content: "Another test file pending approval. This contains research data.",
+          processed_content: JSON.stringify({
+            summary: "Test research paper requiring approval",
+            keyPoints: ["Research finding 1", "Research finding 2"],
+            metadata: { fileType: "research-paper", confidence: 0.88 },
+          }),
+          extracted_data: {
+            summary: "Test research paper requiring approval",
+            keyPoints: ["Research finding 1", "Research finding 2"],
+            metadata: { fileType: "research-paper", confidence: 0.88 },
+          },
+          labels: ["veterinary", "research", "test"],
+          status: "pending",
+          user_id: "test-user-id-2",
+          uploaded_by: "researcher@example.com",
+        },
+      ]
+
+      for (const testFile of testFiles) {
+        const { error } = await supabase.from("processed_data").insert(testFile)
+
+        if (error) {
+          console.error("Error adding test file:", error)
+        }
+      }
+
+      fetchDbFiles()
+      toast({
+        title: "Test files added",
+        description: "Added test pending files for approval demo",
+      })
+    } catch (error) {
+      console.error("Error adding test files:", error)
+    }
+  }, [isAdmin, user, fetchDbFiles, toast])
+
   useEffect(() => {
     if (user) {
       fetchDbFiles()
@@ -136,7 +202,7 @@ export default function HomePage() {
                 processed_content: JSON.stringify(processedData),
                 extracted_data: processedData,
                 labels: ["veterinary", "research"],
-                status: isAdmin ? "ready" : "pending",
+                status: isAdmin ? "ready" : "pending", // Non-admin files get "pending" status
                 user_id: user?.id || "anonymous",
                 uploaded_by: user?.emailAddresses[0]?.emailAddress || "anonymous",
               })
@@ -369,6 +435,8 @@ export default function HomePage() {
     }
   }
 
+  const pendingFiles = dbFiles.filter((f) => f.status === "pending")
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
       <SignedOut>
@@ -441,13 +509,31 @@ export default function HomePage() {
             <div className="mb-6">
               <Card className="bg-yellow-900/20 border-yellow-500/30">
                 <CardContent className="p-4">
-                  <div className="flex items-center space-x-3">
-                    <Shield className="h-5 w-5 text-yellow-400" />
-                    <p className="text-yellow-300 text-sm">
-                      <strong>Admin Mode:</strong> You can preview, approve, and reject all uploaded files. Look for the
-                      <Eye className="h-4 w-4 mx-1 inline" />, <Check className="h-4 w-4 mx-1 inline" />, and
-                      <XCircle className="h-4 w-4 mx-1 inline" /> buttons in the Files tab.
-                    </p>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-3">
+                      <Shield className="h-5 w-5 text-yellow-400" />
+                      <div>
+                        <p className="text-yellow-300 text-sm">
+                          <strong>Admin Mode:</strong> You can preview, approve, and reject all uploaded files.
+                          {pendingFiles.length > 0 ? (
+                            <span className="ml-2 font-bold">
+                              {pendingFiles.length} file{pendingFiles.length > 1 ? "s" : ""} pending approval!
+                            </span>
+                          ) : (
+                            <span className="ml-2">No files pending approval.</span>
+                          )}
+                        </p>
+                      </div>
+                    </div>
+                    {pendingFiles.length === 0 && (
+                      <Button
+                        onClick={addTestPendingFiles}
+                        size="sm"
+                        className="bg-yellow-600 hover:bg-yellow-700 text-white"
+                      >
+                        Add Test Files
+                      </Button>
+                    )}
                   </div>
                 </CardContent>
               </Card>
@@ -479,10 +565,8 @@ export default function HomePage() {
               <TabsTrigger value="files" className="data-[state=active]:bg-blue-600 data-[state=active]:text-white">
                 <Files className="h-4 w-4 mr-2" />
                 Files{" "}
-                {dbFiles.filter((f) => f.status === "pending").length > 0 && (
-                  <Badge className="ml-2 bg-yellow-500 text-black text-xs">
-                    {dbFiles.filter((f) => f.status === "pending").length}
-                  </Badge>
+                {pendingFiles.length > 0 && (
+                  <Badge className="ml-2 bg-yellow-500 text-black text-xs px-1 py-0">{pendingFiles.length}</Badge>
                 )}
               </TabsTrigger>
               <TabsTrigger value="analytics" className="data-[state=active]:bg-blue-600 data-[state=active]:text-white">
@@ -607,8 +691,7 @@ export default function HomePage() {
                       </div>
                       <div className="bg-gradient-to-br from-yellow-600/20 to-yellow-500/10 p-4 rounded-lg border border-yellow-500/20 text-center">
                         <div className="text-2xl font-bold text-yellow-400">
-                          {dbFiles.filter((f) => f.status === "pending").length +
-                            uploadedFiles.filter((f) => f.status === "processing").length}
+                          {pendingFiles.length + uploadedFiles.filter((f) => f.status === "processing").length}
                         </div>
                         <div className="text-sm text-slate-400">Pending</div>
                       </div>
@@ -659,9 +742,7 @@ export default function HomePage() {
                       <div className="text-sm text-slate-400">Approved</div>
                     </div>
                     <div className="bg-gradient-to-br from-yellow-600/20 to-yellow-500/10 p-4 rounded-lg border border-yellow-500/20 text-center">
-                      <div className="text-2xl font-bold text-yellow-400">
-                        {dbFiles.filter((f) => f.status === "pending").length}
-                      </div>
+                      <div className="text-2xl font-bold text-yellow-400">{pendingFiles.length}</div>
                       <div className="text-sm text-slate-400">Pending</div>
                     </div>
                     <div className="bg-gradient-to-br from-red-600/20 to-red-500/10 p-4 rounded-lg border border-red-500/20 text-center">
@@ -680,73 +761,93 @@ export default function HomePage() {
 
             <TabsContent value="files" className="space-y-6">
               {/* Pending Files Section for Admin */}
-              {isAdmin && dbFiles.filter((f) => f.status === "pending").length > 0 && (
+              {isAdmin && pendingFiles.length > 0 && (
                 <Card className="bg-yellow-900/20 border-yellow-500/30">
                   <CardHeader>
                     <CardTitle className="text-yellow-300 flex items-center">
-                      <AlertCircle className="h-5 w-5 mr-2" />
-                      Pending Approval ({dbFiles.filter((f) => f.status === "pending").length})
+                      <AlertCircle className="h-5 w-5 mr-2" />🚨 PENDING APPROVAL ({pendingFiles.length})
                     </CardTitle>
                     <CardDescription className="text-yellow-200">
-                      Files waiting for your approval. Click the eye icon to preview, then approve or reject.
+                      Files waiting for your approval. Click the eye icon to preview, then approve ✅ or reject ❌.
                     </CardDescription>
                   </CardHeader>
                   <CardContent>
                     <div className="space-y-3">
-                      {dbFiles
-                        .filter((f) => f.status === "pending")
-                        .map((file) => (
-                          <div key={file.id} className="bg-slate-700/50 rounded-lg p-4 border border-yellow-500/20">
-                            <div className="flex items-center justify-between">
-                              <div className="flex items-center space-x-3">
-                                <FileText className="h-5 w-5 text-yellow-400" />
-                                <div>
-                                  <h4 className="text-white font-medium">{file.name}</h4>
-                                  <p className="text-sm text-slate-400">
-                                    Uploaded by: {file.uploaded_by} • {new Date(file.created_at).toLocaleDateString()}
-                                  </p>
-                                </div>
+                      {pendingFiles.map((file) => (
+                        <div key={file.id} className="bg-slate-700/50 rounded-lg p-4 border-2 border-yellow-500/40">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center space-x-3">
+                              <FileText className="h-5 w-5 text-yellow-400" />
+                              <div>
+                                <h4 className="text-white font-medium">{file.name}</h4>
+                                <p className="text-sm text-slate-400">
+                                  Uploaded by: {file.uploaded_by} • {new Date(file.created_at).toLocaleDateString()}
+                                </p>
                               </div>
-                              <div className="flex items-center space-x-2">
-                                <Badge
-                                  variant="secondary"
-                                  className="bg-yellow-500/20 text-yellow-400 border-yellow-500/30"
+                            </div>
+                            <div className="flex items-center space-x-2">
+                              <Badge
+                                variant="secondary"
+                                className="bg-yellow-500/20 text-yellow-400 border-yellow-500/30 font-bold"
+                              >
+                                ⏳ PENDING APPROVAL
+                              </Badge>
+                              <div className="flex space-x-1 bg-slate-800/50 p-1 rounded">
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => previewFile(file)}
+                                  className="h-8 w-8 p-0 text-blue-400 hover:text-blue-300 hover:bg-blue-500/20"
+                                  title="👁️ Preview File"
                                 >
-                                  Pending Approval
-                                </Badge>
-                                <div className="flex space-x-1">
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={() => previewFile(file)}
-                                    className="h-8 w-8 p-0 text-blue-400 hover:text-blue-300 hover:bg-blue-500/10"
-                                    title="Preview File"
-                                  >
-                                    <Eye className="h-4 w-4" />
-                                  </Button>
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={() => approveFile(file.id)}
-                                    className="h-8 w-8 p-0 text-green-400 hover:text-green-300 hover:bg-green-500/10"
-                                    title="Approve File"
-                                  >
-                                    <Check className="h-4 w-4" />
-                                  </Button>
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={() => rejectFile(file.id)}
-                                    className="h-8 w-8 p-0 text-red-400 hover:text-red-300 hover:bg-red-500/10"
-                                    title="Reject File"
-                                  >
-                                    <XCircle className="h-4 w-4" />
-                                  </Button>
-                                </div>
+                                  <Eye className="h-4 w-4" />
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => approveFile(file.id)}
+                                  className="h-8 w-8 p-0 text-green-400 hover:text-green-300 hover:bg-green-500/20"
+                                  title="✅ Approve File"
+                                >
+                                  <Check className="h-4 w-4" />
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => rejectFile(file.id)}
+                                  className="h-8 w-8 p-0 text-red-400 hover:text-red-300 hover:bg-red-500/20"
+                                  title="❌ Reject File"
+                                >
+                                  <XCircle className="h-4 w-4" />
+                                </Button>
                               </div>
                             </div>
                           </div>
-                        ))}
+                        </div>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* No Pending Files Message for Admin */}
+              {isAdmin && pendingFiles.length === 0 && (
+                <Card className="bg-green-900/20 border-green-500/30">
+                  <CardContent className="p-4">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center space-x-3">
+                        <CheckCircle className="h-5 w-5 text-green-400" />
+                        <p className="text-green-300 text-sm">
+                          <strong>All caught up!</strong> No files pending approval.
+                        </p>
+                      </div>
+                      <Button
+                        onClick={addTestPendingFiles}
+                        size="sm"
+                        className="bg-blue-600 hover:bg-blue-700 text-white"
+                      >
+                        Add Test Files for Demo
+                      </Button>
                     </div>
                   </CardContent>
                 </Card>

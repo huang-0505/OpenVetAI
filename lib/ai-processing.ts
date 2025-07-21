@@ -1,44 +1,23 @@
 // Simulated AI processing function
 export async function processWithAI(content: string, filename: string) {
-  // Simulate AI processing delay
-  await new Promise((resolve) => setTimeout(resolve, 2000))
+  // Simulate processing delay
+  await new Promise((resolve) => setTimeout(resolve, 1000))
 
   // Mock AI analysis results
-  const mockAnalysis = {
-    title: filename.replace(/\.[^/.]+$/, "").replace(/[-_]/g, " "),
-    summary: `This document contains ${content.length} characters of text content. The analysis shows it contains veterinary-related information with key medical terminology and research data. The document appears to be a ${detectDocumentType(content)} with structured information suitable for medical research purposes.`,
+  return {
+    summary: `AI-generated summary for ${filename}: This document contains veterinary research data with key findings about animal health and treatment protocols.`,
     keyPoints: [
-      "Contains veterinary medical terminology and procedures",
-      "Includes structured data suitable for research analysis",
-      "Document shows clinical or research-oriented content",
-      "Text formatting suggests professional medical documentation",
-      `File size: ${content.length} characters`,
+      "Contains veterinary research data",
+      "Includes treatment protocols",
+      "References animal health studies",
+      "Provides clinical recommendations",
     ],
     metadata: {
-      documentType: detectDocumentType(content),
-      wordCount: content.split(/\s+/).length,
-      characterCount: content.length,
-      estimatedReadingTime: `${Math.ceil(content.split(/\s+/).length / 200)} minutes`,
-      language: "English",
-      confidence: "85%",
+      fileType: filename.split(".").pop() || "unknown",
+      confidence: Math.random() * 0.3 + 0.7, // Random confidence between 0.7-1.0
+      wordCount: content.split(" ").length,
+      language: "en",
     },
-  }
-
-  return mockAnalysis
-}
-
-function detectDocumentType(content: string): string {
-  const lowerContent = content.toLowerCase()
-
-  if (lowerContent.includes("abstract") || lowerContent.includes("methodology")) {
-    return "Research Paper"
-  } else if (lowerContent.includes("patient") || lowerContent.includes("diagnosis")) {
-    return "Clinical Study"
-  } else if (lowerContent.includes("case") || lowerContent.includes("treatment")) {
-    return "Case Report"
-  } else if (lowerContent.includes("veterinary") || lowerContent.includes("animal")) {
-    return "Veterinary Document"
-  } else {
-    return "General Document"
+    extractedEntities: ["veterinary medicine", "animal health", "clinical research"],
   }
 }
