@@ -17,9 +17,6 @@ import {
   FileText,
   CheckCircle,
   AlertCircle,
-  Eye,
-  Check,
-  XCircle,
   Lock,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -838,208 +835,297 @@ Outcome: Stable condition with regular monitoring`,
             </TabsContent>
 
             <TabsContent value="files" className="space-y-6">
-              {/* Pending Files Section for Admin */}
-              {isAdmin && pendingFiles.length > 0 && (
-                <Card className="bg-yellow-900/20 border-yellow-500/30">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 h-[calc(100vh-300px)]">
+                {/* Left Panel - File List */}
+                <Card className="bg-slate-800/50 border-slate-700">
                   <CardHeader>
-                    <CardTitle className="text-yellow-300 flex items-center">
-                      <AlertCircle className="h-5 w-5 mr-2" />🚨 PENDING APPROVAL ({pendingFiles.length})
+                    <CardTitle className="text-white flex items-center">
+                      <Upload className="h-5 w-5 mr-2 text-blue-500" />
+                      Data Input
                     </CardTitle>
-                    <CardDescription className="text-yellow-200">
-                      Files waiting for your approval. Click the eye icon to preview, then approve ✅ or reject ❌.
+                    <CardDescription className="text-slate-400">
+                      Upload files or provide URLs to scrape and process content
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    {/* Upload Area */}
+                    <div
+                      className={`upload-zone border-2 border-dashed rounded-lg p-6 text-center bg-gradient-to-br from-slate-800/30 to-slate-700/30 transition-all duration-300 cursor-pointer ${
+                        isDragOver
+                          ? "border-blue-500 bg-blue-500/10"
+                          : "border-slate-600 hover:border-slate-500 hover:bg-slate-700/20"
+                      }`}
+                      onDragOver={handleDragOver}
+                      onDragLeave={handleDragLeave}
+                      onDrop={handleDrop}
+                      onClick={() => fileInputRef.current?.click()}
+                    >
+                      <Upload className="h-8 w-8 text-slate-400 mx-auto mb-3" />
+                      <p className="text-sm font-medium text-slate-300 mb-1">
+                        {isDragOver ? "Drop files here" : "Drop files here or click to upload"}
+                      </p>
+                      <p className="text-xs text-slate-500">Supports TXT, PDF, DOC, and other text formats</p>
+                      <input
+                        ref={fileInputRef}
+                        type="file"
+                        multiple
+                        accept=".csv,.xlsx,.json,.xml,.txt,.pdf,.doc,.docx"
+                        onChange={handleFileInputChange}
+                        className="hidden"
+                      />
+                    </div>
+
+                    {/* Upload Progress */}
+                    {uploadedFiles.length > 0 && (
+                      <div className="space-y-2">
+                        {uploadedFiles.map((file) => (
+                          <div key={file.id} className="bg-green-900/20 border border-green-500/30 rounded-lg p-3">
+                            <div className="flex items-center space-x-2">
+                              <CheckCircle className="h-4 w-4 text-green-400" />
+                              <span className="text-green-300 text-sm">Successfully processed "{file.file.name}"</span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Processed Data Section */}
+                    <div className="space-y-3">
+                      <div className="flex items-center space-x-2">
+                        <Database className="h-4 w-4 text-slate-400" />
+                        <h3 className="text-white font-medium">Processed Data ({dbFiles.length})</h3>
+                      </div>
+
+                      <ScrollArea className="h-64">
+                        {dbFiles.length > 0 ? (
+                          <div className="space-y-2">
+                            {dbFiles.map((file) => (
+                              <div
+                                key={file.id}
+                                className={`p-3 border rounded-lg cursor-pointer transition-colors ${
+                                  selectedFile?.id === file.id
+                                    ? "border-blue-500 bg-blue-500/10"
+                                    : "border-slate-600 hover:border-slate-500 bg-slate-700/30"
+                                }`}
+                                onClick={() => setSelectedFile(file)}
+                              >
+                                <div className="flex items-center justify-between">
+                                  <div className="flex items-center space-x-2">
+                                    <FileText className="h-4 w-4 text-blue-400" />
+                                    <span className="text-white text-sm font-medium truncate">{file.name}</span>
+                                  </div>
+                                  {getDbStatusBadge(file.status)}
+                                </div>
+                                <div className="flex items-center space-x-2 mt-1">
+                                  <Badge variant="outline" className="text-xs border-slate-500 text-slate-300">
+                                    {file.type.replace("-", " ")}
+                                  </Badge>
+                                  <Badge variant="outline" className="text-xs border-slate-500 text-slate-300">
+                                    {file.source}
+                                  </Badge>
+                                  <span className="text-xs text-slate-500">
+                                    {new Date(file.created_at).toLocaleDateString()}
+                                  </span>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <div className="text-center py-8">
+                            <Files className="h-12 w-12 text-slate-500 mx-auto mb-3" />
+                            <p className="text-slate-400 text-sm">No files uploaded yet</p>
+                            <p className="text-slate-500 text-xs mt-1">Upload files to see them here</p>
+                          </div>
+                        )}
+                      </ScrollArea>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* Right Panel - Data Review */}
+                <Card className="bg-slate-800/50 border-slate-700">
+                  <CardHeader>
+                    <CardTitle className="text-white flex items-center">
+                      <FileText className="h-5 w-5 mr-2 text-blue-500" />
+                      Data Review
+                    </CardTitle>
+                    <CardDescription className="text-slate-400">
+                      Review and approve processed content before training
                     </CardDescription>
                   </CardHeader>
                   <CardContent>
-                    <div className="space-y-3">
-                      {pendingFiles.map((file) => (
-                        <div key={file.id} className="bg-slate-700/50 rounded-lg p-4 border-2 border-yellow-500/40">
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center space-x-3">
-                              <FileText className="h-5 w-5 text-yellow-400" />
-                              <div>
-                                <h4 className="text-white font-medium">{file.name}</h4>
-                                <p className="text-sm text-slate-400">
-                                  Uploaded by: {file.uploaded_by} • {new Date(file.created_at).toLocaleDateString()}
+                    {selectedFile ? (
+                      <ScrollArea className="h-[calc(100vh-400px)]">
+                        <div className="space-y-6">
+                          {/* Extracted Information */}
+                          <div className="space-y-4">
+                            <h3 className="text-white font-semibold">Extracted Information</h3>
+
+                            {/* Title */}
+                            <div>
+                              <Label className="text-slate-300 text-sm font-medium">Title</Label>
+                              <div className="mt-1 p-3 bg-slate-700/50 rounded border border-slate-600">
+                                <p className="text-white text-sm">
+                                  {selectedFile.extracted_data?.title || selectedFile.name}
                                 </p>
                               </div>
                             </div>
-                            <div className="flex items-center space-x-2">
-                              <Badge
-                                variant="secondary"
-                                className="bg-yellow-500/20 text-yellow-400 border-yellow-500/30 font-bold"
-                              >
-                                ⏳ PENDING APPROVAL
-                              </Badge>
-                              <div className="flex space-x-1 bg-slate-800/50 p-1 rounded">
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() => previewFile(file)}
-                                  className="h-8 w-8 p-0 text-blue-400 hover:text-blue-300 hover:bg-blue-500/20"
-                                  title="👁️ Preview File"
-                                >
-                                  <Eye className="h-4 w-4" />
-                                </Button>
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() => approveFile(file.id)}
-                                  className="h-8 w-8 p-0 text-green-400 hover:text-green-300 hover:bg-green-500/20"
-                                  title="✅ Approve File"
-                                >
-                                  <Check className="h-4 w-4" />
-                                </Button>
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() => rejectFile(file.id)}
-                                  className="h-8 w-8 p-0 text-red-400 hover:text-red-300 hover:bg-red-500/20"
-                                  title="❌ Reject File"
-                                >
-                                  <XCircle className="h-4 w-4" />
-                                </Button>
+
+                            {/* Summary */}
+                            <div>
+                              <Label className="text-slate-300 text-sm font-medium">Summary</Label>
+                              <div className="mt-1 p-3 bg-slate-700/50 rounded border border-slate-600">
+                                <p className="text-white text-sm leading-relaxed">
+                                  {selectedFile.extracted_data?.summary ||
+                                    "This medical journal article presents research findings on clinical outcomes and treatment efficacy."}
+                                </p>
+                              </div>
+                            </div>
+
+                            {/* Key Points */}
+                            <div>
+                              <Label className="text-slate-300 text-sm font-medium">Key Points</Label>
+                              <div className="mt-1 p-3 bg-slate-700/50 rounded border border-slate-600">
+                                <ul className="space-y-1">
+                                  {selectedFile.extracted_data?.keyPoints?.map((point: string, index: number) => (
+                                    <li key={index} className="text-white text-sm flex items-start space-x-2">
+                                      <span className="text-blue-400 mt-1">•</span>
+                                      <span>{point}</span>
+                                    </li>
+                                  )) || (
+                                    <>
+                                      <li className="text-white text-sm flex items-start space-x-2">
+                                        <span className="text-blue-400 mt-1">•</span>
+                                        <span>Study methodology and patient demographics</span>
+                                      </li>
+                                      <li className="text-white text-sm flex items-start space-x-2">
+                                        <span className="text-blue-400 mt-1">•</span>
+                                        <span>Primary and secondary endpoints</span>
+                                      </li>
+                                      <li className="text-white text-sm flex items-start space-x-2">
+                                        <span className="text-blue-400 mt-1">•</span>
+                                        <span>Statistical analysis and results</span>
+                                      </li>
+                                      <li className="text-white text-sm flex items-start space-x-2">
+                                        <span className="text-blue-400 mt-1">•</span>
+                                        <span>Clinical implications and recommendations</span>
+                                      </li>
+                                    </>
+                                  )}
+                                </ul>
+                              </div>
+                            </div>
+
+                            {/* Metadata */}
+                            <div>
+                              <Label className="text-slate-300 text-sm font-medium">Metadata</Label>
+                              <div className="mt-1 grid grid-cols-2 gap-3">
+                                <div className="bg-slate-700/50 p-3 rounded border border-slate-600">
+                                  <div className="text-xs text-slate-400 uppercase tracking-wide">Study Type:</div>
+                                  <div className="text-white text-sm mt-1">
+                                    {selectedFile.extracted_data?.metadata?.studyType || "Clinical Trial"}
+                                  </div>
+                                </div>
+                                <div className="bg-slate-700/50 p-3 rounded border border-slate-600">
+                                  <div className="text-xs text-slate-400 uppercase tracking-wide">Sample Size:</div>
+                                  <div className="text-white text-sm mt-1">
+                                    {selectedFile.extracted_data?.metadata?.sampleSize || "N=245"}
+                                  </div>
+                                </div>
+                                <div className="bg-slate-700/50 p-3 rounded border border-slate-600">
+                                  <div className="text-xs text-slate-400 uppercase tracking-wide">Duration:</div>
+                                  <div className="text-white text-sm mt-1">
+                                    {selectedFile.extracted_data?.metadata?.duration || "12 months"}
+                                  </div>
+                                </div>
+                                <div className="bg-slate-700/50 p-3 rounded border border-slate-600">
+                                  <div className="text-xs text-slate-400 uppercase tracking-wide">
+                                    Primary Endpoint:
+                                  </div>
+                                  <div className="text-white text-sm mt-1">
+                                    {selectedFile.extracted_data?.metadata?.primaryEndpoint || "Treatment efficacy"}
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Assign Labels */}
+                            <div>
+                              <Label className="text-slate-300 text-sm font-medium">Assign Labels</Label>
+                              <div className="mt-2 flex flex-wrap gap-2">
+                                {[
+                                  "Medical Research",
+                                  "Clinical Trial",
+                                  "Nutrition",
+                                  "Fitness",
+                                  "Mental Health",
+                                  "Cardiology",
+                                  "Oncology",
+                                  "Pediatrics",
+                                  "Geriatrics",
+                                  "Pharmacology",
+                                  "Diet Plans",
+                                  "Exercise Routines",
+                                  "Wellness Tips",
+                                  "Health News",
+                                ].map((label) => (
+                                  <Badge
+                                    key={label}
+                                    variant="secondary"
+                                    className="bg-blue-500/20 text-blue-400 border-blue-500/30 text-xs cursor-pointer hover:bg-blue-500/30"
+                                  >
+                                    {label}
+                                  </Badge>
+                                ))}
+                              </div>
+                            </div>
+
+                            {/* Processed Content Preview */}
+                            <div>
+                              <Label className="text-slate-300 text-sm font-medium">Processed Content Preview</Label>
+                              <div className="mt-1 p-3 bg-slate-700/50 rounded border border-slate-600 max-h-32 overflow-y-auto">
+                                <pre className="text-white text-xs whitespace-pre-wrap font-mono">
+                                  {selectedFile.original_content?.substring(0, 500) ||
+                                    "Contributors\nAcknowledgements\n1. Review of Cardiovascular and Respiratory Physiology\nThe Cardiovascular System\nRespiratory Physiology\n2. The Preanesthetic Workup"}
+                                  ...
+                                </pre>
                               </div>
                             </div>
                           </div>
-                        </div>
-                      ))}
-                    </div>
-                  </CardContent>
-                </Card>
-              )}
 
-              {/* No Pending Files Message for Admin */}
-              {isAdmin && pendingFiles.length === 0 && (
-                <Card className="bg-green-900/20 border-green-500/30">
-                  <CardContent className="p-4">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center space-x-3">
-                        <CheckCircle className="h-5 w-5 text-green-400" />
-                        <p className="text-green-300 text-sm">
-                          <strong>All caught up!</strong> No files pending approval.
+                          {/* Action Buttons */}
+                          {isAdmin && selectedFile.status === "pending" && (
+                            <div className="flex space-x-3 pt-4 border-t border-slate-600">
+                              <Button
+                                onClick={() => rejectFile(selectedFile.id)}
+                                variant="outline"
+                                className="flex-1 border-slate-600 text-slate-300 hover:bg-slate-700"
+                              >
+                                Reject
+                              </Button>
+                              <Button
+                                onClick={() => approveFile(selectedFile.id)}
+                                className="flex-1 bg-slate-900 hover:bg-black text-white"
+                              >
+                                <CheckCircle className="h-4 w-4 mr-2" />
+                                Approve
+                              </Button>
+                            </div>
+                          )}
+                        </div>
+                      </ScrollArea>
+                    ) : (
+                      <div className="text-center py-12">
+                        <FileText className="h-16 w-16 text-slate-500 mx-auto mb-4" />
+                        <p className="text-slate-400">Select a file to review</p>
+                        <p className="text-sm text-slate-500 mt-2">
+                          Click on a file from the left panel to see its details
                         </p>
                       </div>
-                      <Button
-                        onClick={addTestPendingFiles}
-                        size="sm"
-                        className="bg-blue-600 hover:bg-blue-700 text-white"
-                      >
-                        Add Test Files for Demo
-                      </Button>
-                    </div>
+                    )}
                   </CardContent>
                 </Card>
-              )}
-
-              {/* All Files Section */}
-              <Card className="bg-slate-800/50 border-slate-700">
-                <CardHeader>
-                  <CardTitle className="text-white">All Files</CardTitle>
-                  <CardDescription className="text-slate-400">
-                    {isAdmin ? "View and manage all uploaded files" : "View your uploaded files"}
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  {dbFiles.length > 0 || uploadedFiles.filter((f) => f.status === "completed").length > 0 ? (
-                    <div className="space-y-4">
-                      {/* Show database files */}
-                      {dbFiles
-                        .filter((file) => isAdmin || file.user_id === user?.id)
-                        .map((file) => (
-                          <div key={file.id} className="bg-slate-700/50 rounded-lg p-4">
-                            <div className="flex items-center justify-between">
-                              <div className="flex items-center space-x-3">
-                                <FileText className="h-5 w-5 text-blue-400" />
-                                <div>
-                                  <h4 className="text-white font-medium">{file.name}</h4>
-                                  <p className="text-sm text-slate-400">
-                                    Uploaded by: {file.uploaded_by} • {new Date(file.created_at).toLocaleDateString()}
-                                  </p>
-                                </div>
-                              </div>
-                              <div className="flex items-center space-x-2">
-                                {getDbStatusBadge(file.status)}
-
-                                {/* Admin-only actions */}
-                                {isAdmin && (
-                                  <div className="flex space-x-1">
-                                    <Button
-                                      variant="ghost"
-                                      size="sm"
-                                      onClick={() => previewFile(file)}
-                                      className="h-8 w-8 p-0 text-blue-400 hover:text-blue-300 hover:bg-blue-500/10"
-                                      title="Preview File"
-                                    >
-                                      <Eye className="h-4 w-4" />
-                                    </Button>
-                                    {file.status === "pending" && (
-                                      <>
-                                        <Button
-                                          variant="ghost"
-                                          size="sm"
-                                          onClick={() => approveFile(file.id)}
-                                          className="h-8 w-8 p-0 text-green-400 hover:text-green-300 hover:bg-green-500/10"
-                                          title="Approve File"
-                                        >
-                                          <Check className="h-4 w-4" />
-                                        </Button>
-                                        <Button
-                                          variant="ghost"
-                                          size="sm"
-                                          onClick={() => rejectFile(file.id)}
-                                          className="h-8 w-8 p-0 text-red-400 hover:text-red-300 hover:bg-red-500/10"
-                                          title="Reject File"
-                                        >
-                                          <XCircle className="h-4 w-4" />
-                                        </Button>
-                                      </>
-                                    )}
-                                  </div>
-                                )}
-
-                                {/* Regular users see restricted message */}
-                                {!isAdmin && file.status === "pending" && (
-                                  <div className="flex items-center space-x-1 text-xs text-slate-500">
-                                    <Lock className="h-3 w-3" />
-                                    <span>Awaiting approval</span>
-                                  </div>
-                                )}
-                              </div>
-                            </div>
-                          </div>
-                        ))}
-
-                      {/* Show completed uploaded files that aren't in database yet */}
-                      {uploadedFiles
-                        .filter((f) => f.status === "completed")
-                        .map((file) => (
-                          <div key={file.id} className="bg-slate-700/50 rounded-lg p-4">
-                            <div className="flex items-center justify-between">
-                              <div className="flex items-center space-x-3">
-                                <FileText className="h-5 w-5 text-green-400" />
-                                <div>
-                                  <h4 className="text-white font-medium">{file.file.name}</h4>
-                                  <p className="text-sm text-slate-400">
-                                    Just uploaded • {(file.file.size / 1024).toFixed(1)} KB
-                                  </p>
-                                </div>
-                              </div>
-                              <Badge variant="secondary" className="bg-green-500/20 text-green-400">
-                                Processed
-                              </Badge>
-                            </div>
-                          </div>
-                        ))}
-                    </div>
-                  ) : (
-                    <div className="text-center py-12">
-                      <Files className="h-16 w-16 text-slate-500 mx-auto mb-4" />
-                      <p className="text-slate-400">No files uploaded yet</p>
-                      <p className="text-sm text-slate-500 mt-2">Upload files in the Upload tab to see them here</p>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
+              </div>
             </TabsContent>
 
             <TabsContent value="analytics" className="space-y-6">
