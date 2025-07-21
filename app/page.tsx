@@ -21,12 +21,17 @@ import {
   Check,
   XCircle,
   Lock,
+  Calendar,
+  User,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { ScrollArea } from "@/components/ui/scroll-area"
+import { Separator } from "@/components/ui/separator"
 import { useToast } from "@/hooks/use-toast"
 import { processWithAI } from "@/lib/ai-processing"
 import { supabase } from "@/lib/supabase"
@@ -47,6 +52,8 @@ export default function HomePage() {
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([])
   const [isDragOver, setIsDragOver] = useState(false)
   const [dbFiles, setDbFiles] = useState<any[]>([])
+  const [selectedFile, setSelectedFile] = useState<any>(null)
+  const [previewOpen, setPreviewOpen] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   // Check if user is admin
@@ -313,6 +320,11 @@ export default function HomePage() {
     },
     [isAdmin, fetchDbFiles, toast],
   )
+
+  const previewFile = useCallback((file: any) => {
+    setSelectedFile(file)
+    setPreviewOpen(true)
+  }, [])
 
   const getStatusIcon = (status: UploadedFile["status"]) => {
     switch (status) {
@@ -678,6 +690,7 @@ export default function HomePage() {
                                     <Button
                                       variant="ghost"
                                       size="sm"
+                                      onClick={() => previewFile(file)}
                                       className="h-8 w-8 p-0 text-blue-400 hover:text-blue-300"
                                       title="Preview"
                                     >
@@ -864,6 +877,134 @@ export default function HomePage() {
             </TabsContent>
           </Tabs>
         </main>
+
+        {/* File Preview Dialog */}
+        <Dialog open={previewOpen} onOpenChange={setPreviewOpen}>
+          <DialogContent className="max-w-4xl max-h-[80vh] bg-slate-800 border-slate-700">
+            <DialogHeader>
+              <DialogTitle className="text-white flex items-center space-x-2">
+                <FileText className="h-5 w-5 text-blue-400" />
+                <span>{selectedFile?.name}</span>
+                {selectedFile && getDbStatusBadge(selectedFile.status)}
+              </DialogTitle>
+              <DialogDescription className="text-slate-400">Document preview and analysis results</DialogDescription>
+            </DialogHeader>
+
+            {selectedFile && (
+              <div className="space-y-6">
+                {/* File Metadata */}
+                <div className="grid grid-cols-2 gap-4">
+                  <Card className="bg-slate-700/50 border-slate-600">
+                    <CardContent className="p-4">
+                      <div className="flex items-center space-x-2 mb-2">
+                        <User className="h-4 w-4 text-slate-400" />
+                        <span className="text-sm font-medium text-slate-300">Uploaded by</span>
+                      </div>
+                      <p className="text-white">{selectedFile.uploaded_by}</p>
+                    </CardContent>
+                  </Card>
+
+                  <Card className="bg-slate-700/50 border-slate-600">
+                    <CardContent className="p-4">
+                      <div className="flex items-center space-x-2 mb-2">
+                        <Calendar className="h-4 w-4 text-slate-400" />
+                        <span className="text-sm font-medium text-slate-300">Upload Date</span>
+                      </div>
+                      <p className="text-white">{new Date(selectedFile.created_at).toLocaleDateString()}</p>
+                    </CardContent>
+                  </Card>
+                </div>
+
+                {/* AI Analysis Results */}
+                {selectedFile.extracted_data && (
+                  <Card className="bg-slate-700/50 border-slate-600">
+                    <CardHeader>
+                      <CardTitle className="text-white text-lg">AI Analysis Results</CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      <div>
+                        <h4 className="text-slate-300 font-medium mb-2">Summary</h4>
+                        <p className="text-slate-200 text-sm leading-relaxed">{selectedFile.extracted_data.summary}</p>
+                      </div>
+
+                      <Separator className="bg-slate-600" />
+
+                      <div>
+                        <h4 className="text-slate-300 font-medium mb-2">Key Points</h4>
+                        <ul className="space-y-1">
+                          {selectedFile.extracted_data.keyPoints?.map((point: string, index: number) => (
+                            <li key={index} className="text-slate-200 text-sm flex items-start space-x-2">
+                              <span className="text-blue-400 mt-1">•</span>
+                              <span>{point}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+
+                      <Separator className="bg-slate-600" />
+
+                      <div>
+                        <h4 className="text-slate-300 font-medium mb-2">Metadata</h4>
+                        <div className="grid grid-cols-2 gap-4">
+                          {selectedFile.extracted_data.metadata &&
+                            Object.entries(selectedFile.extracted_data.metadata).map(([key, value]) => (
+                              <div key={key} className="bg-slate-800/50 p-3 rounded">
+                                <div className="text-xs text-slate-400 uppercase tracking-wide">
+                                  {key.replace(/([A-Z])/g, " $1").trim()}
+                                </div>
+                                <div className="text-slate-200 text-sm mt-1">{value as string}</div>
+                              </div>
+                            ))}
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+
+                {/* Original Content Preview */}
+                <Card className="bg-slate-700/50 border-slate-600">
+                  <CardHeader>
+                    <CardTitle className="text-white text-lg">Original Content</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <ScrollArea className="h-64 w-full rounded border border-slate-600 bg-slate-800/50 p-4">
+                      <pre className="text-slate-200 text-sm whitespace-pre-wrap font-mono">
+                        {selectedFile.original_content}
+                      </pre>
+                    </ScrollArea>
+                  </CardContent>
+                </Card>
+
+                {/* Admin Actions */}
+                {isAdmin && selectedFile.status === "pending" && (
+                  <div className="flex justify-end space-x-2 pt-4 border-t border-slate-600">
+                    <Button
+                      variant="outline"
+                      onClick={() => {
+                        rejectFile(selectedFile.id)
+                        setPreviewOpen(false)
+                      }}
+                      className="border-red-500/50 text-red-400 hover:bg-red-500/10"
+                    >
+                      <XCircle className="h-4 w-4 mr-2" />
+                      Reject
+                    </Button>
+                    <Button
+                      onClick={() => {
+                        approveFile(selectedFile.id)
+                        setPreviewOpen(false)
+                      }}
+                      className="bg-green-600 hover:bg-green-700 text-white"
+                    >
+                      <Check className="h-4 w-4 mr-2" />
+                      Approve
+                    </Button>
+                  </div>
+                )}
+              </div>
+            )}
+          </DialogContent>
+        </Dialog>
       </SignedIn>
     </div>
   )
