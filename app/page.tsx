@@ -361,6 +361,152 @@ export default function HomePage() {
 
   const pendingFiles = dbFiles.filter((f) => f.status === "pending")
 
+  // Add test pending files for demo
+  const addTestPendingFiles = useCallback(async () => {
+    if (!isAdmin || !user) return
+
+    try {
+      const testFiles = [
+        {
+          name: "Anesthesia for Veterinary Technicians.pdf",
+          type: "research-paper",
+          source: "upload",
+          original_content: `Contributors
+Acknowledgements
+1. Review of Cardiovascular and Respiratory Physiology
+The Cardiovascular System
+Respiratory Physiology
+2. The Preanesthetic Workup
+Physical Examination
+Laboratory Tests
+Risk Assessment
+3. Anesthetic Equipment and Monitoring
+Anesthetic Machines
+Monitoring Equipment
+Safety Protocols
+4. Pharmacology of Anesthetic Agents
+Inhalant Anesthetics
+Injectable Anesthetics
+Adjunctive Medications
+5. Anesthetic Techniques
+Induction Protocols
+Maintenance Techniques
+Recovery Procedures`,
+          processed_content: JSON.stringify({
+            title: "Medical Study: Anesthesia for Veterinary Technicians",
+            summary:
+              "This medical journal article presents research findings on clinical outcomes and treatment efficacy for veterinary anesthesia protocols and techniques.",
+            keyPoints: [
+              "Study methodology and patient demographics",
+              "Primary and secondary endpoints",
+              "Statistical analysis and results",
+              "Clinical implications and recommendations",
+            ],
+            metadata: {
+              studyType: "Clinical Trial",
+              sampleSize: "N=245",
+              duration: "12 months",
+              primaryEndpoint: "Treatment efficacy",
+            },
+          }),
+          extracted_data: {
+            title: "Medical Study: Anesthesia for Veterinary Technicians",
+            summary:
+              "This medical journal article presents research findings on clinical outcomes and treatment efficacy for veterinary anesthesia protocols and techniques.",
+            keyPoints: [
+              "Study methodology and patient demographics",
+              "Primary and secondary endpoints",
+              "Statistical analysis and results",
+              "Clinical implications and recommendations",
+            ],
+            metadata: {
+              studyType: "Clinical Trial",
+              sampleSize: "N=245",
+              duration: "12 months",
+              primaryEndpoint: "Treatment efficacy",
+            },
+          },
+          labels: ["Medical Research", "Clinical Trial", "Nutrition", "Fitness", "Mental Health"],
+          status: "pending",
+          user_id: "test-user-id",
+          uploaded_by: "researcher@veterinary.edu",
+        },
+        {
+          name: "Veterinary Cardiology Case Studies.txt",
+          type: "case-report",
+          source: "upload",
+          original_content: `Case Study 1: Dilated Cardiomyopathy in Golden Retriever
+Patient: 8-year-old male Golden Retriever
+Presenting complaint: Exercise intolerance, coughing
+Diagnostic findings: Echocardiography revealed dilated left ventricle
+Treatment protocol: ACE inhibitors, diuretics, dietary modification
+Outcome: Significant improvement in clinical signs
+
+Case Study 2: Mitral Valve Disease in Cavalier King Charles Spaniel
+Patient: 12-year-old female CKCS
+Presenting complaint: Heart murmur detected on routine examination
+Diagnostic findings: Grade 4/6 systolic murmur, mitral regurgitation
+Treatment protocol: Pimobendan, furosemide
+Outcome: Stable condition with regular monitoring`,
+          processed_content: JSON.stringify({
+            title: "Veterinary Cardiology Case Studies",
+            summary:
+              "Collection of clinical case studies focusing on cardiac conditions in companion animals, including diagnostic approaches and treatment outcomes.",
+            keyPoints: [
+              "Dilated cardiomyopathy management in large breed dogs",
+              "Mitral valve disease progression in small breeds",
+              "Diagnostic imaging techniques in veterinary cardiology",
+              "Evidence-based treatment protocols",
+            ],
+            metadata: {
+              studyType: "Case Series",
+              numberOfCases: "15 cases",
+              duration: "24 months",
+              primaryEndpoint: "Clinical improvement",
+            },
+          }),
+          extracted_data: {
+            title: "Veterinary Cardiology Case Studies",
+            summary:
+              "Collection of clinical case studies focusing on cardiac conditions in companion animals, including diagnostic approaches and treatment outcomes.",
+            keyPoints: [
+              "Dilated cardiomyopathy management in large breed dogs",
+              "Mitral valve disease progression in small breeds",
+              "Diagnostic imaging techniques in veterinary cardiology",
+              "Evidence-based treatment protocols",
+            ],
+            metadata: {
+              studyType: "Case Series",
+              numberOfCases: "15 cases",
+              duration: "24 months",
+              primaryEndpoint: "Clinical improvement",
+            },
+          },
+          labels: ["Cardiology", "Veterinary Medicine", "Case Studies"],
+          status: "pending",
+          user_id: "test-user-id-2",
+          uploaded_by: "cardiology@vetclinic.com",
+        },
+      ]
+
+      for (const testFile of testFiles) {
+        const { error } = await supabase.from("processed_data").insert(testFile)
+
+        if (error) {
+          console.error("Error adding test file:", error)
+        }
+      }
+
+      fetchDbFiles()
+      toast({
+        title: "Test files added",
+        description: "Added test pending files for approval demo",
+      })
+    } catch (error) {
+      console.error("Error adding test files:", error)
+    }
+  }, [isAdmin, user, fetchDbFiles, toast])
+
   // Combine database files with completed uploaded files for the Files tab
   const allFiles = [
     ...dbFiles,
@@ -454,20 +600,31 @@ export default function HomePage() {
             <div className="mb-6">
               <Card className="bg-yellow-900/20 border-yellow-500/30">
                 <CardContent className="p-4">
-                  <div className="flex items-center space-x-3">
-                    <Shield className="h-5 w-5 text-yellow-400" />
-                    <div>
-                      <p className="text-yellow-300 text-sm">
-                        <strong>Admin Mode:</strong> You can preview, approve, and reject all uploaded files.
-                        {pendingFiles.length > 0 ? (
-                          <span className="ml-2 font-bold">
-                            {pendingFiles.length} file{pendingFiles.length > 1 ? "s" : ""} pending approval!
-                          </span>
-                        ) : (
-                          <span className="ml-2">No files pending approval.</span>
-                        )}
-                      </p>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-3">
+                      <Shield className="h-5 w-5 text-yellow-400" />
+                      <div>
+                        <p className="text-yellow-300 text-sm">
+                          <strong>Admin Mode:</strong> You can preview, approve, and reject all uploaded files.
+                          {pendingFiles.length > 0 ? (
+                            <span className="ml-2 font-bold">
+                              {pendingFiles.length} file{pendingFiles.length > 1 ? "s" : ""} pending approval!
+                            </span>
+                          ) : (
+                            <span className="ml-2">No files pending approval.</span>
+                          )}
+                        </p>
+                      </div>
                     </div>
+                    {pendingFiles.length === 0 && (
+                      <Button
+                        onClick={addTestPendingFiles}
+                        size="sm"
+                        className="bg-yellow-600 hover:bg-yellow-700 text-white"
+                      >
+                        Add Test Files for Demo
+                      </Button>
+                    )}
                   </div>
                 </CardContent>
               </Card>
@@ -905,18 +1062,18 @@ export default function HomePage() {
                           </div>
 
                           {/* Action Buttons */}
-                          {isAdmin && selectedFile.status === "pending" && (
+                          {isAdmin && selectedFile && selectedFile.status === "pending" && (
                             <div className="flex space-x-3 pt-4 border-t border-slate-600">
                               <Button
                                 onClick={() => rejectFile(selectedFile.id)}
                                 variant="outline"
-                                className="flex-1 border-slate-600 text-slate-300 hover:bg-slate-700"
+                                className="flex-1 border-red-500/50 text-red-400 hover:bg-red-500/10"
                               >
                                 Reject
                               </Button>
                               <Button
                                 onClick={() => approveFile(selectedFile.id)}
-                                className="flex-1 bg-slate-900 hover:bg-black text-white"
+                                className="flex-1 bg-green-600 hover:bg-green-700 text-white"
                               >
                                 <CheckCircle className="h-4 w-4 mr-2" />
                                 Approve
