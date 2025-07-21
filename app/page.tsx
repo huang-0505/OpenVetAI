@@ -342,25 +342,25 @@ export default function HomePage() {
     switch (status) {
       case "pending":
         return (
-          <Badge variant="secondary" className="bg-yellow-500/20 text-yellow-400">
-            Pending
+          <Badge variant="secondary" className="bg-yellow-500/20 text-yellow-400 border-yellow-500/30">
+            Pending Approval
           </Badge>
         )
       case "approved":
         return (
-          <Badge variant="secondary" className="bg-green-500/20 text-green-400">
+          <Badge variant="secondary" className="bg-green-500/20 text-green-400 border-green-500/30">
             Approved
           </Badge>
         )
       case "rejected":
         return (
-          <Badge variant="secondary" className="bg-red-500/20 text-red-400">
+          <Badge variant="secondary" className="bg-red-500/20 text-red-400 border-red-500/30">
             Rejected
           </Badge>
         )
       case "ready":
         return (
-          <Badge variant="secondary" className="bg-blue-500/20 text-blue-400">
+          <Badge variant="secondary" className="bg-blue-500/20 text-blue-400 border-blue-500/30">
             Ready
           </Badge>
         )
@@ -405,7 +405,7 @@ export default function HomePage() {
                 </Badge>
                 {isAdmin && (
                   <Badge variant="secondary" className="bg-yellow-500/20 text-yellow-400 border-yellow-500/30">
-                    Admin
+                    Admin Access
                   </Badge>
                 )}
               </div>
@@ -436,6 +436,24 @@ export default function HomePage() {
 
         {/* Main Content */}
         <main className="container mx-auto px-4 py-8">
+          {/* Admin Notice */}
+          {isAdmin && (
+            <div className="mb-6">
+              <Card className="bg-yellow-900/20 border-yellow-500/30">
+                <CardContent className="p-4">
+                  <div className="flex items-center space-x-3">
+                    <Shield className="h-5 w-5 text-yellow-400" />
+                    <p className="text-yellow-300 text-sm">
+                      <strong>Admin Mode:</strong> You can preview, approve, and reject all uploaded files. Look for the
+                      <Eye className="h-4 w-4 mx-1 inline" />, <Check className="h-4 w-4 mx-1 inline" />, and
+                      <XCircle className="h-4 w-4 mx-1 inline" /> buttons in the Files tab.
+                    </p>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          )}
+
           {/* AI Processing Notice */}
           <div className="mb-6">
             <Card className="bg-blue-900/20 border-blue-500/30">
@@ -460,7 +478,12 @@ export default function HomePage() {
               </TabsTrigger>
               <TabsTrigger value="files" className="data-[state=active]:bg-blue-600 data-[state=active]:text-white">
                 <Files className="h-4 w-4 mr-2" />
-                Files
+                Files{" "}
+                {dbFiles.filter((f) => f.status === "pending").length > 0 && (
+                  <Badge className="ml-2 bg-yellow-500 text-black text-xs">
+                    {dbFiles.filter((f) => f.status === "pending").length}
+                  </Badge>
+                )}
               </TabsTrigger>
               <TabsTrigger value="analytics" className="data-[state=active]:bg-blue-600 data-[state=active]:text-white">
                 <BarChart3 className="h-4 w-4 mr-2" />
@@ -656,9 +679,83 @@ export default function HomePage() {
             </TabsContent>
 
             <TabsContent value="files" className="space-y-6">
+              {/* Pending Files Section for Admin */}
+              {isAdmin && dbFiles.filter((f) => f.status === "pending").length > 0 && (
+                <Card className="bg-yellow-900/20 border-yellow-500/30">
+                  <CardHeader>
+                    <CardTitle className="text-yellow-300 flex items-center">
+                      <AlertCircle className="h-5 w-5 mr-2" />
+                      Pending Approval ({dbFiles.filter((f) => f.status === "pending").length})
+                    </CardTitle>
+                    <CardDescription className="text-yellow-200">
+                      Files waiting for your approval. Click the eye icon to preview, then approve or reject.
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-3">
+                      {dbFiles
+                        .filter((f) => f.status === "pending")
+                        .map((file) => (
+                          <div key={file.id} className="bg-slate-700/50 rounded-lg p-4 border border-yellow-500/20">
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center space-x-3">
+                                <FileText className="h-5 w-5 text-yellow-400" />
+                                <div>
+                                  <h4 className="text-white font-medium">{file.name}</h4>
+                                  <p className="text-sm text-slate-400">
+                                    Uploaded by: {file.uploaded_by} • {new Date(file.created_at).toLocaleDateString()}
+                                  </p>
+                                </div>
+                              </div>
+                              <div className="flex items-center space-x-2">
+                                <Badge
+                                  variant="secondary"
+                                  className="bg-yellow-500/20 text-yellow-400 border-yellow-500/30"
+                                >
+                                  Pending Approval
+                                </Badge>
+                                <div className="flex space-x-1">
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => previewFile(file)}
+                                    className="h-8 w-8 p-0 text-blue-400 hover:text-blue-300 hover:bg-blue-500/10"
+                                    title="Preview File"
+                                  >
+                                    <Eye className="h-4 w-4" />
+                                  </Button>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => approveFile(file.id)}
+                                    className="h-8 w-8 p-0 text-green-400 hover:text-green-300 hover:bg-green-500/10"
+                                    title="Approve File"
+                                  >
+                                    <Check className="h-4 w-4" />
+                                  </Button>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => rejectFile(file.id)}
+                                    className="h-8 w-8 p-0 text-red-400 hover:text-red-300 hover:bg-red-500/10"
+                                    title="Reject File"
+                                  >
+                                    <XCircle className="h-4 w-4" />
+                                  </Button>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* All Files Section */}
               <Card className="bg-slate-800/50 border-slate-700">
                 <CardHeader>
-                  <CardTitle className="text-white">File Management</CardTitle>
+                  <CardTitle className="text-white">All Files</CardTitle>
                   <CardDescription className="text-slate-400">
                     {isAdmin ? "View and manage all uploaded files" : "View your uploaded files"}
                   </CardDescription>
@@ -691,8 +788,8 @@ export default function HomePage() {
                                       variant="ghost"
                                       size="sm"
                                       onClick={() => previewFile(file)}
-                                      className="h-8 w-8 p-0 text-blue-400 hover:text-blue-300"
-                                      title="Preview"
+                                      className="h-8 w-8 p-0 text-blue-400 hover:text-blue-300 hover:bg-blue-500/10"
+                                      title="Preview File"
                                     >
                                       <Eye className="h-4 w-4" />
                                     </Button>
@@ -702,8 +799,8 @@ export default function HomePage() {
                                           variant="ghost"
                                           size="sm"
                                           onClick={() => approveFile(file.id)}
-                                          className="h-8 w-8 p-0 text-green-400 hover:text-green-300"
-                                          title="Approve"
+                                          className="h-8 w-8 p-0 text-green-400 hover:text-green-300 hover:bg-green-500/10"
+                                          title="Approve File"
                                         >
                                           <Check className="h-4 w-4" />
                                         </Button>
@@ -711,8 +808,8 @@ export default function HomePage() {
                                           variant="ghost"
                                           size="sm"
                                           onClick={() => rejectFile(file.id)}
-                                          className="h-8 w-8 p-0 text-red-400 hover:text-red-300"
-                                          title="Reject"
+                                          className="h-8 w-8 p-0 text-red-400 hover:text-red-300 hover:bg-red-500/10"
+                                          title="Reject File"
                                         >
                                           <XCircle className="h-4 w-4" />
                                         </Button>

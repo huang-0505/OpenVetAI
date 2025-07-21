@@ -1,16 +1,16 @@
 import type React from "react"
 import type { Metadata } from "next"
 import { Inter } from "next/font/google"
-import "./globals.css"
 import { ClerkProvider } from "@clerk/nextjs"
 import { ThemeProvider } from "@/components/theme-provider"
 import { Toaster } from "@/components/ui/toaster"
+import "./globals.css"
 
 const inter = Inter({ subsets: ["latin"] })
 
 export const metadata: Metadata = {
   title: "Data Ingestion Portal",
-  description: "Advanced data processing and analysis platform",
+  description: "Upload and process data files with AI analysis",
     generator: 'v0.dev'
 }
 
