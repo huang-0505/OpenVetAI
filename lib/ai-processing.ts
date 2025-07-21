@@ -5,18 +5,20 @@ export async function processWithAI(content: string, filename: string) {
 
   // Mock AI analysis results
   return {
-    summary: `AI-generated summary for ${filename}: This document contains veterinary research data with key findings about animal health and treatment protocols.`,
+    title: `AI-generated title for ${filename.replace(/\.[^/.]+$/, "")}`,
+    summary: `AI-generated summary for ${filename}: This document contains veterinary research data with key findings about animal health and treatment protocols. The analysis shows comprehensive medical information suitable for training purposes.`,
     keyPoints: [
-      "Contains veterinary research data",
-      "Includes treatment protocols",
-      "References animal health studies",
-      "Provides clinical recommendations",
+      "Contains veterinary research data and clinical findings",
+      "Includes treatment protocols and diagnostic procedures",
+      "References evidence-based medical practices",
+      "Provides clinical recommendations and guidelines",
     ],
     metadata: {
-      fileType: filename.split(".").pop() || "unknown",
-      confidence: Math.random() * 0.3 + 0.7, // Random confidence between 0.7-1.0
+      studyType: "Clinical Research",
+      confidence: (Math.random() * 0.3 + 0.7).toFixed(2), // Random confidence between 0.7-1.0
       wordCount: content.split(" ").length,
-      language: "en",
+      language: "English",
+      fileType: filename.split(".").pop() || "unknown",
     },
     extractedEntities: ["veterinary medicine", "animal health", "clinical research"],
   }

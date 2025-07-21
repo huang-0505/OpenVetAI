@@ -21,8 +21,6 @@ import {
   Check,
   XCircle,
   Lock,
-  Calendar,
-  User,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -31,7 +29,7 @@ import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import { Separator } from "@/components/ui/separator"
+import { Label } from "@/components/ui/label"
 import { useToast } from "@/hooks/use-toast"
 import { processWithAI } from "@/lib/ai-processing"
 import { supabase } from "@/lib/supabase"
@@ -96,44 +94,124 @@ export default function HomePage() {
     try {
       const testFiles = [
         {
-          name: "test-pending-file-1.txt",
-          type: "case-report",
-          source: "upload",
-          original_content: "This is a test file that needs admin approval. It contains veterinary case study data.",
-          processed_content: JSON.stringify({
-            summary: "Test veterinary case study requiring approval",
-            keyPoints: ["Test data point 1", "Test data point 2"],
-            metadata: { fileType: "case-report", confidence: 0.95 },
-          }),
-          extracted_data: {
-            summary: "Test veterinary case study requiring approval",
-            keyPoints: ["Test data point 1", "Test data point 2"],
-            metadata: { fileType: "case-report", confidence: 0.95 },
-          },
-          labels: ["veterinary", "test"],
-          status: "pending",
-          user_id: "test-user-id",
-          uploaded_by: "test@example.com",
-        },
-        {
-          name: "test-pending-file-2.txt",
+          name: "Anesthesia for Veterinary Technicians.pdf",
           type: "research-paper",
           source: "upload",
-          original_content: "Another test file pending approval. This contains research data.",
+          original_content: `Contributors
+Acknowledgements
+1. Review of Cardiovascular and Respiratory Physiology
+The Cardiovascular System
+Respiratory Physiology
+2. The Preanesthetic Workup
+Physical Examination
+Laboratory Tests
+Risk Assessment
+3. Anesthetic Equipment and Monitoring
+Anesthetic Machines
+Monitoring Equipment
+Safety Protocols
+4. Pharmacology of Anesthetic Agents
+Inhalant Anesthetics
+Injectable Anesthetics
+Adjunctive Medications
+5. Anesthetic Techniques
+Induction Protocols
+Maintenance Techniques
+Recovery Procedures`,
           processed_content: JSON.stringify({
-            summary: "Test research paper requiring approval",
-            keyPoints: ["Research finding 1", "Research finding 2"],
-            metadata: { fileType: "research-paper", confidence: 0.88 },
+            title: "Medical Study: Anesthesia for Veterinary Technicians",
+            summary:
+              "This medical journal article presents research findings on clinical outcomes and treatment efficacy for veterinary anesthesia protocols and techniques.",
+            keyPoints: [
+              "Study methodology and patient demographics",
+              "Primary and secondary endpoints",
+              "Statistical analysis and results",
+              "Clinical implications and recommendations",
+            ],
+            metadata: {
+              studyType: "Clinical Trial",
+              sampleSize: "N=245",
+              duration: "12 months",
+              primaryEndpoint: "Treatment efficacy",
+            },
           }),
           extracted_data: {
-            summary: "Test research paper requiring approval",
-            keyPoints: ["Research finding 1", "Research finding 2"],
-            metadata: { fileType: "research-paper", confidence: 0.88 },
+            title: "Medical Study: Anesthesia for Veterinary Technicians",
+            summary:
+              "This medical journal article presents research findings on clinical outcomes and treatment efficacy for veterinary anesthesia protocols and techniques.",
+            keyPoints: [
+              "Study methodology and patient demographics",
+              "Primary and secondary endpoints",
+              "Statistical analysis and results",
+              "Clinical implications and recommendations",
+            ],
+            metadata: {
+              studyType: "Clinical Trial",
+              sampleSize: "N=245",
+              duration: "12 months",
+              primaryEndpoint: "Treatment efficacy",
+            },
           },
-          labels: ["veterinary", "research", "test"],
+          labels: ["Medical Research", "Clinical Trial", "Nutrition", "Fitness", "Mental Health"],
+          status: "pending",
+          user_id: "test-user-id",
+          uploaded_by: "researcher@veterinary.edu",
+        },
+        {
+          name: "Veterinary Cardiology Case Studies.txt",
+          type: "case-report",
+          source: "upload",
+          original_content: `Case Study 1: Dilated Cardiomyopathy in Golden Retriever
+Patient: 8-year-old male Golden Retriever
+Presenting complaint: Exercise intolerance, coughing
+Diagnostic findings: Echocardiography revealed dilated left ventricle
+Treatment protocol: ACE inhibitors, diuretics, dietary modification
+Outcome: Significant improvement in clinical signs
+
+Case Study 2: Mitral Valve Disease in Cavalier King Charles Spaniel
+Patient: 12-year-old female CKCS
+Presenting complaint: Heart murmur detected on routine examination
+Diagnostic findings: Grade 4/6 systolic murmur, mitral regurgitation
+Treatment protocol: Pimobendan, furosemide
+Outcome: Stable condition with regular monitoring`,
+          processed_content: JSON.stringify({
+            title: "Veterinary Cardiology Case Studies",
+            summary:
+              "Collection of clinical case studies focusing on cardiac conditions in companion animals, including diagnostic approaches and treatment outcomes.",
+            keyPoints: [
+              "Dilated cardiomyopathy management in large breed dogs",
+              "Mitral valve disease progression in small breeds",
+              "Diagnostic imaging techniques in veterinary cardiology",
+              "Evidence-based treatment protocols",
+            ],
+            metadata: {
+              studyType: "Case Series",
+              numberOfCases: "15 cases",
+              duration: "24 months",
+              primaryEndpoint: "Clinical improvement",
+            },
+          }),
+          extracted_data: {
+            title: "Veterinary Cardiology Case Studies",
+            summary:
+              "Collection of clinical case studies focusing on cardiac conditions in companion animals, including diagnostic approaches and treatment outcomes.",
+            keyPoints: [
+              "Dilated cardiomyopathy management in large breed dogs",
+              "Mitral valve disease progression in small breeds",
+              "Diagnostic imaging techniques in veterinary cardiology",
+              "Evidence-based treatment protocols",
+            ],
+            metadata: {
+              studyType: "Case Series",
+              numberOfCases: "15 cases",
+              duration: "24 months",
+              primaryEndpoint: "Clinical improvement",
+            },
+          },
+          labels: ["Cardiology", "Veterinary Medicine", "Case Studies"],
           status: "pending",
           user_id: "test-user-id-2",
-          uploaded_by: "researcher@example.com",
+          uploaded_by: "cardiology@vetclinic.com",
         },
       ]
 
@@ -1076,129 +1154,166 @@ export default function HomePage() {
           </Tabs>
         </main>
 
-        {/* File Preview Dialog */}
+        {/* Enhanced File Preview Dialog */}
         <Dialog open={previewOpen} onOpenChange={setPreviewOpen}>
-          <DialogContent className="max-w-4xl max-h-[80vh] bg-slate-800 border-slate-700">
+          <DialogContent className="max-w-6xl max-h-[90vh] bg-slate-800 border-slate-700">
             <DialogHeader>
               <DialogTitle className="text-white flex items-center space-x-2">
                 <FileText className="h-5 w-5 text-blue-400" />
-                <span>{selectedFile?.name}</span>
-                {selectedFile && getDbStatusBadge(selectedFile.status)}
+                <span>Data Review</span>
               </DialogTitle>
-              <DialogDescription className="text-slate-400">Document preview and analysis results</DialogDescription>
+              <DialogDescription className="text-slate-400">
+                Review and approve processed content before training
+              </DialogDescription>
             </DialogHeader>
 
             {selectedFile && (
-              <div className="space-y-6">
-                {/* File Metadata */}
-                <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 max-h-[70vh] overflow-hidden">
+                {/* Left Panel - File Info */}
+                <div className="space-y-4">
                   <Card className="bg-slate-700/50 border-slate-600">
-                    <CardContent className="p-4">
-                      <div className="flex items-center space-x-2 mb-2">
-                        <User className="h-4 w-4 text-slate-400" />
-                        <span className="text-sm font-medium text-slate-300">Uploaded by</span>
+                    <CardHeader className="pb-3">
+                      <CardTitle className="text-white text-lg">{selectedFile.name}</CardTitle>
+                      <div className="flex items-center space-x-2">
+                        {getDbStatusBadge(selectedFile.status)}
+                        <Badge variant="outline" className="text-xs">
+                          {selectedFile.type.replace("-", " ")}
+                        </Badge>
                       </div>
-                      <p className="text-white">{selectedFile.uploaded_by}</p>
-                    </CardContent>
-                  </Card>
-
-                  <Card className="bg-slate-700/50 border-slate-600">
-                    <CardContent className="p-4">
-                      <div className="flex items-center space-x-2 mb-2">
-                        <Calendar className="h-4 w-4 text-slate-400" />
-                        <span className="text-sm font-medium text-slate-300">Upload Date</span>
-                      </div>
-                      <p className="text-white">{new Date(selectedFile.created_at).toLocaleDateString()}</p>
-                    </CardContent>
-                  </Card>
-                </div>
-
-                {/* AI Analysis Results */}
-                {selectedFile.extracted_data && (
-                  <Card className="bg-slate-700/50 border-slate-600">
-                    <CardHeader>
-                      <CardTitle className="text-white text-lg">AI Analysis Results</CardTitle>
                     </CardHeader>
-                    <CardContent className="space-y-4">
-                      <div>
-                        <h4 className="text-slate-300 font-medium mb-2">Summary</h4>
-                        <p className="text-slate-200 text-sm leading-relaxed">{selectedFile.extracted_data.summary}</p>
-                      </div>
-
-                      <Separator className="bg-slate-600" />
-
-                      <div>
-                        <h4 className="text-slate-300 font-medium mb-2">Key Points</h4>
-                        <ul className="space-y-1">
-                          {selectedFile.extracted_data.keyPoints?.map((point: string, index: number) => (
-                            <li key={index} className="text-slate-200 text-sm flex items-start space-x-2">
-                              <span className="text-blue-400 mt-1">•</span>
-                              <span>{point}</span>
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
-
-                      <Separator className="bg-slate-600" />
-
-                      <div>
-                        <h4 className="text-slate-300 font-medium mb-2">Metadata</h4>
-                        <div className="grid grid-cols-2 gap-4">
-                          {selectedFile.extracted_data.metadata &&
-                            Object.entries(selectedFile.extracted_data.metadata).map(([key, value]) => (
-                              <div key={key} className="bg-slate-800/50 p-3 rounded">
-                                <div className="text-xs text-slate-400 uppercase tracking-wide">
-                                  {key.replace(/([A-Z])/g, " $1").trim()}
-                                </div>
-                                <div className="text-slate-200 text-sm mt-1">{value as string}</div>
-                              </div>
-                            ))}
+                    <CardContent className="space-y-3">
+                      <div className="grid grid-cols-2 gap-4 text-sm">
+                        <div>
+                          <span className="text-slate-400">Uploaded by:</span>
+                          <p className="text-white">{selectedFile.uploaded_by}</p>
+                        </div>
+                        <div>
+                          <span className="text-slate-400">Upload Date:</span>
+                          <p className="text-white">{new Date(selectedFile.created_at).toLocaleDateString()}</p>
                         </div>
                       </div>
                     </CardContent>
                   </Card>
-                )}
 
-                {/* Original Content Preview */}
-                <Card className="bg-slate-700/50 border-slate-600">
-                  <CardHeader>
-                    <CardTitle className="text-white text-lg">Original Content</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <ScrollArea className="h-64 w-full rounded border border-slate-600 bg-slate-800/50 p-4">
-                      <pre className="text-slate-200 text-sm whitespace-pre-wrap font-mono">
-                        {selectedFile.original_content}
-                      </pre>
-                    </ScrollArea>
-                  </CardContent>
-                </Card>
+                  {/* Original Content Preview */}
+                  <Card className="bg-slate-700/50 border-slate-600">
+                    <CardHeader className="pb-3">
+                      <CardTitle className="text-white text-lg">Processed Content Preview</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <ScrollArea className="h-64 w-full rounded border border-slate-600 bg-slate-800/50 p-4">
+                        <pre className="text-slate-200 text-sm whitespace-pre-wrap font-mono">
+                          {selectedFile.original_content}
+                        </pre>
+                      </ScrollArea>
+                    </CardContent>
+                  </Card>
+                </div>
 
-                {/* Admin Actions */}
-                {isAdmin && selectedFile.status === "pending" && (
-                  <div className="flex justify-end space-x-2 pt-4 border-t border-slate-600">
-                    <Button
-                      variant="outline"
-                      onClick={() => {
-                        rejectFile(selectedFile.id)
-                        setPreviewOpen(false)
-                      }}
-                      className="border-red-500/50 text-red-400 hover:bg-red-500/10"
-                    >
-                      <XCircle className="h-4 w-4 mr-2" />
-                      Reject
-                    </Button>
-                    <Button
-                      onClick={() => {
-                        approveFile(selectedFile.id)
-                        setPreviewOpen(false)
-                      }}
-                      className="bg-green-600 hover:bg-green-700 text-white"
-                    >
-                      <Check className="h-4 w-4 mr-2" />
-                      Approve
-                    </Button>
-                  </div>
-                )}
+                {/* Right Panel - Extracted Information */}
+                <div className="space-y-4">
+                  <Card className="bg-slate-700/50 border-slate-600">
+                    <CardHeader className="pb-3">
+                      <CardTitle className="text-white text-lg">Extracted Information</CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      {/* Title */}
+                      <div>
+                        <Label className="text-slate-300 font-medium">Title</Label>
+                        <div className="mt-1 p-3 bg-slate-800/50 rounded border border-slate-600">
+                          <p className="text-white text-sm">
+                            {selectedFile.extracted_data?.title || "No title extracted"}
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* Summary */}
+                      <div>
+                        <Label className="text-slate-300 font-medium">Summary</Label>
+                        <div className="mt-1 p-3 bg-slate-800/50 rounded border border-slate-600">
+                          <p className="text-white text-sm leading-relaxed">
+                            {selectedFile.extracted_data?.summary || "No summary available"}
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* Key Points */}
+                      <div>
+                        <Label className="text-slate-300 font-medium">Key Points</Label>
+                        <div className="mt-1 p-3 bg-slate-800/50 rounded border border-slate-600">
+                          <ul className="space-y-1">
+                            {selectedFile.extracted_data?.keyPoints?.map((point: string, index: number) => (
+                              <li key={index} className="text-white text-sm flex items-start space-x-2">
+                                <span className="text-blue-400 mt-1">•</span>
+                                <span>{point}</span>
+                              </li>
+                            )) || <li className="text-slate-400 text-sm">No key points extracted</li>}
+                          </ul>
+                        </div>
+                      </div>
+
+                      {/* Metadata */}
+                      <div>
+                        <Label className="text-slate-300 font-medium">Metadata</Label>
+                        <div className="mt-1 grid grid-cols-2 gap-2">
+                          {selectedFile.extracted_data?.metadata ? (
+                            Object.entries(selectedFile.extracted_data.metadata).map(([key, value]) => (
+                              <div key={key} className="bg-slate-800/50 p-2 rounded border border-slate-600">
+                                <div className="text-xs text-slate-400 uppercase tracking-wide">
+                                  {key.replace(/([A-Z])/g, " $1").trim()}
+                                </div>
+                                <div className="text-white text-sm mt-1">{value as string}</div>
+                              </div>
+                            ))
+                          ) : (
+                            <div className="col-span-2 text-slate-400 text-sm">No metadata available</div>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Assign Labels */}
+                      <div>
+                        <Label className="text-slate-300 font-medium">Assign Labels</Label>
+                        <div className="mt-1 flex flex-wrap gap-2">
+                          {selectedFile.labels?.map((label: string, index: number) => (
+                            <Badge
+                              key={index}
+                              variant="secondary"
+                              className="bg-blue-500/20 text-blue-400 border-blue-500/30"
+                            >
+                              {label}
+                            </Badge>
+                          )) || <span className="text-slate-400 text-sm">No labels assigned</span>}
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </div>
+              </div>
+            )}
+
+            {/* Action Buttons */}
+            {selectedFile && isAdmin && selectedFile.status === "pending" && (
+              <div className="flex justify-end space-x-3 pt-4 border-t border-slate-600">
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    rejectFile(selectedFile.id)
+                    setPreviewOpen(false)
+                  }}
+                  className="border-red-500/50 text-red-400 hover:bg-red-500/10 px-6"
+                >
+                  Reject
+                </Button>
+                <Button
+                  onClick={() => {
+                    approveFile(selectedFile.id)
+                    setPreviewOpen(false)
+                  }}
+                  className="bg-slate-900 hover:bg-black text-white px-8"
+                >
+                  Approve
+                </Button>
               </div>
             )}
           </DialogContent>
