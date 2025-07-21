@@ -15,7 +15,6 @@ import {
   CheckCircle,
   AlertCircle,
   RefreshCw,
-  Globe,
   Calendar,
   Clock,
   AlertTriangle,
@@ -45,58 +44,6 @@ interface UploadedFile {
   duplicateOf?: string
 }
 
-// Predefined labels for different content types
-const CONTENT_LABELS = {
-  "medical-journal": [
-    "Clinical Research",
-    "Case Studies",
-    "Treatment Protocols",
-    "Diagnostic Methods",
-    "Pharmacology",
-    "Surgery Techniques",
-    "Patient Care",
-    "Medical Equipment",
-    "Laboratory Testing",
-    "Emergency Medicine",
-  ],
-  "nutrition-blog": [
-    "Diet Plans",
-    "Nutritional Science",
-    "Weight Management",
-    "Supplements",
-    "Food Safety",
-    "Meal Planning",
-    "Health Benefits",
-    "Dietary Restrictions",
-    "Cooking Tips",
-    "Wellness Advice",
-  ],
-  "veterinary-research": [
-    "Animal Health",
-    "Veterinary Medicine",
-    "Animal Behavior",
-    "Preventive Care",
-    "Surgical Procedures",
-    "Diagnostic Imaging",
-    "Pharmacotherapy",
-    "Infectious Diseases",
-    "Nutrition",
-    "Emergency Care",
-  ],
-  "fitness-content": [
-    "Exercise Routines",
-    "Strength Training",
-    "Cardio Workouts",
-    "Flexibility",
-    "Sports Performance",
-    "Injury Prevention",
-    "Recovery Methods",
-    "Equipment Reviews",
-    "Training Programs",
-    "Fitness Goals",
-  ],
-}
-
 // Training schedule configuration
 const TRAINING_SCHEDULES = {
   weekly: { label: "Weekly", days: 7 },
@@ -113,9 +60,7 @@ export default function HomePage() {
   const [isDragOver, setIsDragOver] = useState(false)
   const [dbFiles, setDbFiles] = useState<any[]>([])
   const [selectedFile, setSelectedFile] = useState<any>(null)
-  const [urlInput, setUrlInput] = useState("")
-  const [isProcessingUrl, setIsProcessingUrl] = useState(false)
-  const [selectedContentType, setSelectedContentType] = useState<string>("medical-journal")
+  const [newLabelInput, setNewLabelInput] = useState("")
   const [selectedLabels, setSelectedLabels] = useState<string[]>([])
   const [trainingSchedule, setTrainingSchedule] = useState("monthly")
   const [nextTrainingDate, setNextTrainingDate] = useState<Date>(new Date(Date.now() + 30 * 24 * 60 * 60 * 1000))
@@ -160,172 +105,26 @@ export default function HomePage() {
     }
   }, [user, fetchDbFiles])
 
-  // Simulate URL scraping
-  const scrapeUrl = async (url: string): Promise<string> => {
-    // Simulate network delay
-    await new Promise((resolve) => setTimeout(resolve, 2000))
-
-    // Mock scraped content based on URL
-    if (url.includes("journal") || url.includes("research")) {
-      return `Title: Advanced Veterinary Anesthesia Protocols
-      
-Abstract: This study examines the efficacy of modern anesthesia protocols in veterinary medicine, focusing on safety improvements and patient outcomes.
-
-Introduction: Veterinary anesthesia has evolved significantly over the past decade, with new protocols showing improved safety margins and better patient recovery times.
-
-Methods: A retrospective analysis of 500 cases was conducted across multiple veterinary clinics, examining anesthesia protocols, patient demographics, and outcomes.
-
-Results: The new protocols showed a 15% improvement in recovery times and a 20% reduction in complications compared to traditional methods.
-
-Discussion: These findings suggest that updated anesthesia protocols should be adopted more widely in veterinary practice.
-
-Conclusion: Modern anesthesia protocols offer significant advantages in veterinary medicine and should be considered standard practice.`
-    } else if (url.includes("nutrition") || url.includes("diet")) {
-      return `The Ultimate Guide to Pet Nutrition
-
-Introduction: Proper nutrition is fundamental to pet health and longevity. This comprehensive guide covers essential nutrients, feeding schedules, and common dietary mistakes.
-
-Essential Nutrients:
-- Proteins: Building blocks for muscle development
-- Carbohydrates: Energy source for daily activities  
-- Fats: Essential for coat health and vitamin absorption
-- Vitamins: Support immune system and metabolic functions
-- Minerals: Critical for bone health and enzyme function
-
-Feeding Guidelines:
-- Puppies: 3-4 meals per day with high-protein content
-- Adult dogs: 2 meals per day with balanced nutrition
-- Senior pets: Adjusted portions with joint support supplements
-
-Common Mistakes:
-- Overfeeding leading to obesity
-- Inconsistent feeding schedules
-- Poor quality commercial foods
-- Lack of fresh water availability
-
-Conclusion: A well-balanced diet tailored to your pet's life stage and activity level is essential for optimal health.`
-    } else {
-      return `Scraped content from: ${url}
-
-This is simulated content that would be extracted from the provided URL. In a real implementation, this would use web scraping libraries to extract clean text content from the webpage, removing HTML tags, advertisements, and navigation elements.
-
-The content would then be processed and structured based on the detected content type for optimal training data preparation.`
-    }
-  }
-
   // Enhanced AI processing with content-type specific prompts
-  const processContentWithAI = async (content: string, filename: string, contentType: string) => {
+  const processContentWithAI = async (content: string, filename: string) => {
     await new Promise((resolve) => setTimeout(resolve, 1500))
 
-    // Content-type specific processing
-    switch (contentType) {
-      case "medical-journal":
-        return {
-          title: `Medical Study: ${filename.replace(/\.(txt|pdf|doc|docx)$/, "")}`,
-          summary:
-            "This medical journal article presents research findings on clinical outcomes, treatment efficacy, and evidence-based practices in veterinary medicine.",
-          keyPoints: [
-            "Study methodology and patient demographics",
-            "Primary and secondary clinical endpoints",
-            "Statistical analysis and significance testing",
-            "Clinical implications and treatment recommendations",
-            "Safety profile and adverse event monitoring",
-          ],
-          contentType: "Medical Research",
-          extractedData: {
-            studyType: "Clinical Trial",
-            sampleSize: "N=" + Math.floor(Math.random() * 500 + 50),
-            duration: Math.floor(Math.random() * 24 + 6) + " months",
-            primaryEndpoint: "Treatment efficacy and safety",
-            methodology: "Randomized controlled trial",
-          },
-        }
-
-      case "nutrition-blog":
-        return {
-          title: `Nutrition Guide: ${filename.replace(/\.(txt|pdf|doc|docx)$/, "")}`,
-          summary:
-            "This nutrition-focused content provides evidence-based dietary recommendations, meal planning strategies, and nutritional science insights for optimal health outcomes.",
-          keyPoints: [
-            "Nutritional requirements and daily values",
-            "Meal planning and portion control strategies",
-            "Evidence-based dietary recommendations",
-            "Supplement guidance and safety considerations",
-            "Lifestyle integration and sustainability tips",
-          ],
-          contentType: "Nutrition Education",
-          extractedData: {
-            targetAudience: "General public",
-            nutritionFocus: "Balanced diet approach",
-            evidenceLevel: "Peer-reviewed research",
-            practicalTips: "Meal prep and planning",
-            healthGoals: "Weight management and wellness",
-          },
-        }
-
-      case "veterinary-research":
-        return {
-          title: `Veterinary Research: ${filename.replace(/\.(txt|pdf|doc|docx)$/, "")}`,
-          summary:
-            "This veterinary research document covers animal health protocols, diagnostic procedures, and treatment methodologies for companion and livestock animals.",
-          keyPoints: [
-            "Animal health assessment protocols",
-            "Diagnostic imaging and laboratory testing",
-            "Treatment protocols and medication guidelines",
-            "Preventive care and vaccination schedules",
-            "Emergency procedures and critical care",
-          ],
-          contentType: "Veterinary Medicine",
-          extractedData: {
-            animalTypes: "Dogs, cats, livestock",
-            practiceArea: "General veterinary medicine",
-            procedures: "Diagnostic and therapeutic",
-            equipment: "Standard veterinary tools",
-            protocols: "Evidence-based guidelines",
-          },
-        }
-
-      case "fitness-content":
-        return {
-          title: `Fitness Guide: ${filename.replace(/\.(txt|pdf|doc|docx)$/, "")}`,
-          summary:
-            "This fitness content provides exercise routines, training methodologies, and performance optimization strategies for various fitness levels and goals.",
-          keyPoints: [
-            "Exercise programming and periodization",
-            "Strength training and muscle development",
-            "Cardiovascular fitness and endurance",
-            "Injury prevention and recovery protocols",
-            "Performance tracking and goal setting",
-          ],
-          contentType: "Fitness Training",
-          extractedData: {
-            fitnessLevel: "Beginner to advanced",
-            exerciseTypes: "Strength and cardio",
-            equipment: "Gym and home workouts",
-            duration: "4-12 week programs",
-            goals: "Strength, endurance, weight loss",
-          },
-        }
-
-      default:
-        return {
-          title: `Document: ${filename}`,
-          summary:
-            "This document contains general content that has been processed and structured for training purposes.",
-          keyPoints: [
-            "Key information extracted from content",
-            "Relevant topics and themes identified",
-            "Important concepts and terminology",
-            "Actionable insights and recommendations",
-          ],
-          contentType: "General Content",
-          extractedData: {
-            wordCount: Math.floor(Math.random() * 5000 + 1000),
-            readingLevel: "Professional",
-            topics: "Various",
-            format: "Structured text",
-          },
-        }
+    return {
+      title: `Document: ${filename}`,
+      summary: "This document contains general content that has been processed and structured for training purposes.",
+      keyPoints: [
+        "Key information extracted from content",
+        "Relevant topics and themes identified",
+        "Important concepts and terminology",
+        "Actionable insights and recommendations",
+      ],
+      contentType: "General Content",
+      extractedData: {
+        wordCount: Math.floor(Math.random() * 5000 + 1000),
+        readingLevel: "Professional",
+        topics: "Various",
+        format: "Structured text",
+      },
     }
   }
 
@@ -372,7 +171,7 @@ The content would then be processed and structured based on the detected content
           const content = await readFileContent(uploadedFile.file!)
 
           // Process with AI using content-type specific prompts
-          const processedData = await processContentWithAI(content, uploadedFile.file!.name, selectedContentType)
+          const processedData = await processContentWithAI(content, uploadedFile.file!.name)
 
           // Save to database
           let dbRecord = null
@@ -381,7 +180,7 @@ The content would then be processed and structured based on the detected content
               .from("processed_data")
               .insert({
                 name: uploadedFile.file!.name,
-                type: selectedContentType,
+                type: "generic",
                 source: "file-upload",
                 original_content: content.substring(0, 10000),
                 processed_content: JSON.stringify(processedData),
@@ -439,120 +238,8 @@ The content would then be processed and structured based on the detected content
         }
       }
     },
-    [user, selectedContentType, selectedLabels, dbFiles, uploadedFiles, fetchDbFiles, toast],
+    [user, selectedLabels, dbFiles, uploadedFiles, fetchDbFiles, toast],
   )
-
-  const handleUrlSubmit = useCallback(async () => {
-    if (!urlInput.trim()) return
-
-    const existingFiles = [...dbFiles, ...uploadedFiles.filter((f) => f.status === "completed")]
-    const urlName = new URL(urlInput).hostname + new URL(urlInput).pathname
-    const duplicateCheck = detectDuplicates({ name: urlName }, existingFiles)
-
-    if (duplicateCheck.isDuplicate) {
-      toast({
-        title: "Duplicate URL detected",
-        description: `This URL content already exists as ${duplicateCheck.duplicateOf}`,
-        variant: "destructive",
-      })
-      return
-    }
-
-    const urlFile: UploadedFile = {
-      id: Math.random().toString(36).substr(2, 9),
-      url: urlInput,
-      name: urlName,
-      status: "uploading",
-      progress: 0,
-    }
-
-    setUploadedFiles((prev) => [...prev, urlFile])
-    setIsProcessingUrl(true)
-
-    try {
-      // Simulate scraping progress
-      for (let progress = 0; progress <= 100; progress += 20) {
-        await new Promise((resolve) => setTimeout(resolve, 400))
-        setUploadedFiles((prev) => prev.map((f) => (f.id === urlFile.id ? { ...f, progress } : f)))
-      }
-
-      // Update status to processing
-      setUploadedFiles((prev) => prev.map((f) => (f.id === urlFile.id ? { ...f, status: "processing" } : f)))
-
-      // Scrape URL content
-      const scrapedContent = await scrapeUrl(urlInput)
-
-      // Process with AI
-      const processedData = await processContentWithAI(scrapedContent, urlName, selectedContentType)
-
-      // Save to database
-      let dbRecord = null
-      try {
-        const { data, error } = await supabase
-          .from("processed_data")
-          .insert({
-            name: urlName,
-            type: selectedContentType,
-            source: "url-scraping",
-            original_content: scrapedContent.substring(0, 10000),
-            processed_content: JSON.stringify(processedData),
-            extracted_data: processedData,
-            labels: selectedLabels,
-            status: "pending",
-            user_id: user?.id || "anonymous",
-            uploaded_by: user?.emailAddresses[0]?.emailAddress || "anonymous",
-          })
-          .select()
-
-        if (error) throw error
-        dbRecord = data?.[0]
-        fetchDbFiles()
-      } catch (dbError) {
-        console.warn("Database operation failed:", dbError)
-      }
-
-      // Update status to completed
-      setUploadedFiles((prev) =>
-        prev.map((f) =>
-          f.id === urlFile.id
-            ? {
-                ...f,
-                status: "completed",
-                processedData: dbRecord || processedData,
-              }
-            : f,
-        ),
-      )
-
-      toast({
-        title: "URL processed successfully",
-        description: `Content from ${urlInput} has been scraped and processed.`,
-      })
-
-      setUrlInput("")
-    } catch (error) {
-      console.error("Error processing URL:", error)
-      setUploadedFiles((prev) =>
-        prev.map((f) =>
-          f.id === urlFile.id
-            ? {
-                ...f,
-                status: "error",
-                error: error instanceof Error ? error.message : "URL processing failed",
-              }
-            : f,
-        ),
-      )
-
-      toast({
-        title: "Error processing URL",
-        description: `Failed to process ${urlInput}`,
-        variant: "destructive",
-      })
-    } finally {
-      setIsProcessingUrl(false)
-    }
-  }, [urlInput, selectedContentType, selectedLabels, dbFiles, uploadedFiles, fetchDbFiles, toast, user])
 
   const readFileContent = (file: File): Promise<string> => {
     return new Promise((resolve, reject) => {
@@ -862,42 +549,49 @@ The content would then be processed and structured based on the detected content
                     </CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-6">
-                    {/* Content Type Selection */}
+                    {/* Custom Labels Input */}
                     <div className="space-y-2">
-                      <Label className="text-slate-300 text-sm font-medium">Content Type</Label>
-                      <Select value={selectedContentType} onValueChange={setSelectedContentType}>
-                        <SelectTrigger className="bg-slate-700 border-slate-600">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="medical-journal">Medical Journal</SelectItem>
-                          <SelectItem value="nutrition-blog">Nutrition Blog</SelectItem>
-                          <SelectItem value="veterinary-research">Veterinary Research</SelectItem>
-                          <SelectItem value="fitness-content">Fitness Content</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-                    {/* Predefined Labels */}
-                    <div className="space-y-2">
-                      <Label className="text-slate-300 text-sm font-medium">Select Labels</Label>
-                      <div className="flex flex-wrap gap-2 max-h-32 overflow-y-auto">
-                        {CONTENT_LABELS[selectedContentType as keyof typeof CONTENT_LABELS]?.map((label) => (
-                          <Badge
-                            key={label}
-                            variant={selectedLabels.includes(label) ? "default" : "outline"}
-                            className={`cursor-pointer text-xs ${
-                              selectedLabels.includes(label)
-                                ? "bg-blue-600 text-white"
-                                : "border-slate-500 text-slate-300 hover:bg-slate-700"
-                            }`}
-                            onClick={() => toggleLabel(label)}
-                          >
-                            {label}
-                          </Badge>
-                        ))}
+                      <Label className="text-slate-300 text-sm font-medium">Document Labels</Label>
+                      <div className="flex space-x-2">
+                        <Input
+                          placeholder="Add custom label..."
+                          value={newLabelInput}
+                          onChange={(e) => setNewLabelInput(e.target.value)}
+                          onKeyPress={(e) => {
+                            if (e.key === "Enter" && newLabelInput.trim()) {
+                              setSelectedLabels((prev) => [...prev, newLabelInput.trim()])
+                              setNewLabelInput("")
+                            }
+                          }}
+                          className="bg-slate-700 border-slate-600 text-white"
+                        />
+                        <Button
+                          onClick={() => {
+                            if (newLabelInput.trim()) {
+                              setSelectedLabels((prev) => [...prev, newLabelInput.trim()])
+                              setNewLabelInput("")
+                            }
+                          }}
+                          size="sm"
+                          className="bg-blue-600 hover:bg-blue-700"
+                        >
+                          Add
+                        </Button>
                       </div>
-                      <p className="text-xs text-slate-500">{selectedLabels.length} labels selected</p>
+                      {selectedLabels.length > 0 && (
+                        <div className="flex flex-wrap gap-2">
+                          {selectedLabels.map((label, index) => (
+                            <Badge
+                              key={index}
+                              variant="default"
+                              className="bg-blue-600 text-white cursor-pointer"
+                              onClick={() => setSelectedLabels((prev) => prev.filter((_, i) => i !== index))}
+                            >
+                              {label} ×
+                            </Badge>
+                          ))}
+                        </div>
+                      )}
                     </div>
 
                     {/* File Upload Section */}
@@ -923,31 +617,6 @@ The content would then be processed and structured based on the detected content
                         onChange={handleFileInputChange}
                         className="hidden"
                       />
-                    </div>
-
-                    {/* URL Input Section */}
-                    <div className="space-y-2">
-                      <Label className="text-slate-300 text-sm font-medium">URL Input</Label>
-                      <div className="flex space-x-2">
-                        <div className="relative flex-1">
-                          <Globe className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-400" />
-                          <Input
-                            type="url"
-                            placeholder="https://example.com/article"
-                            value={urlInput}
-                            onChange={(e) => setUrlInput(e.target.value)}
-                            className="pl-10 bg-slate-700 border-slate-600 text-white"
-                            disabled={isProcessingUrl}
-                          />
-                        </div>
-                        <Button
-                          onClick={handleUrlSubmit}
-                          disabled={!urlInput.trim() || isProcessingUrl}
-                          className="bg-blue-600 hover:bg-blue-700"
-                        >
-                          {isProcessingUrl ? "Processing..." : "Scrape"}
-                        </Button>
-                      </div>
                     </div>
 
                     {/* Processing Status */}
