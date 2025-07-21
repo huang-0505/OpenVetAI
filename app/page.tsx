@@ -62,12 +62,25 @@ export default function HomePage() {
         .select("*")
         .order("created_at", { ascending: false })
 
-      if (error) throw error
+      if (error) {
+        console.error("Supabase error:", error)
+        toast({
+          title: "Database Error",
+          description: "Could not connect to database. Using local storage only.",
+          variant: "destructive",
+        })
+        return
+      }
       setDbFiles(data || [])
     } catch (error) {
       console.error("Error fetching files:", error)
+      toast({
+        title: "Connection Error",
+        description: "Database connection failed. Files will be processed locally only.",
+        variant: "destructive",
+      })
     }
-  }, [user])
+  }, [user, toast])
 
   useEffect(() => {
     if (user) {
@@ -89,8 +102,8 @@ export default function HomePage() {
       for (const uploadedFile of newFiles) {
         try {
           // Simulate upload progress
-          for (let progress = 0; progress <= 100; progress += 10) {
-            await new Promise((resolve) => setTimeout(resolve, 100))
+          for (let progress = 0; progress <= 100; progress += 20) {
+            await new Promise((resolve) => setTimeout(resolve, 200))
             setUploadedFiles((prev) => prev.map((f) => (f.id === uploadedFile.id ? { ...f, progress } : f)))
           }
 
@@ -100,27 +113,42 @@ export default function HomePage() {
           // Read file content
           const content = await readFileContent(uploadedFile.file)
 
-          // Process with AI
+          // Process with AI (this is currently a simulation)
           const processedData = await processWithAI(content, uploadedFile.file.name)
 
-          // Save to database - regular users can only upload, status is 'pending' for admin approval
-          const { data, error } = await supabase
-            .from("processed_data")
-            .insert({
-              name: uploadedFile.file.name,
-              type: detectFileType(uploadedFile.file.name),
-              source: "upload",
-              original_content: content,
-              processed_content: JSON.stringify(processedData),
-              extracted_data: processedData,
-              labels: ["veterinary", "research"],
-              status: isAdmin ? "ready" : "pending", // Non-admin files need approval
-              user_id: user?.id,
-              uploaded_by: user?.emailAddresses[0]?.emailAddress,
-            })
-            .select()
+          // Try to save to database, but continue even if it fails
+          let dbRecord = null
+          try {
+            const { data, error } = await supabase
+              .from("processed_data")
+              .insert({
+                name: uploadedFile.file.name,
+                type: detectFileType(uploadedFile.file.name),
+                source: "upload",
+                original_content: content.substring(0, 10000), // Limit content size
+                processed_content: JSON.stringify(processedData),
+                extracted_data: processedData,
+                labels: ["veterinary", "research"],
+                status: isAdmin ? "ready" : "pending",
+                user_id: user?.id || "anonymous",
+                uploaded_by: user?.emailAddresses[0]?.emailAddress || "anonymous",
+              })
+              .select()
 
-          if (error) throw error
+            if (error) {
+              console.warn("Database save failed:", error)
+              toast({
+                title: "Database Warning",
+                description: "File processed but not saved to database. Check your connection.",
+                variant: "destructive",
+              })
+            } else {
+              dbRecord = data?.[0]
+              fetchDbFiles() // Refresh database files
+            }
+          } catch (dbError) {
+            console.warn("Database operation failed:", dbError)
+          }
 
           // Update status to completed
           setUploadedFiles((prev) =>
@@ -129,17 +157,14 @@ export default function HomePage() {
                 ? {
                     ...f,
                     status: "completed",
-                    processedData: data?.[0],
+                    processedData: dbRecord || processedData,
                   }
                 : f,
             ),
           )
 
-          // Refresh database files
-          fetchDbFiles()
-
           toast({
-            title: "File uploaded successfully",
+            title: "File processed successfully",
             description: isAdmin
               ? `${uploadedFile.file.name} has been processed and is ready.`
               : `${uploadedFile.file.name} has been uploaded and is pending admin approval.`,
@@ -152,7 +177,7 @@ export default function HomePage() {
                 ? {
                     ...f,
                     status: "error",
-                    error: error instanceof Error ? error.message : "Unknown error",
+                    error: error instanceof Error ? error.message : "Processing failed",
                   }
                 : f,
             ),
@@ -160,7 +185,7 @@ export default function HomePage() {
 
           toast({
             title: "Error processing file",
-            description: `Failed to process ${uploadedFile.file.name}`,
+            description: `Failed to process ${uploadedFile.file.name}: ${error instanceof Error ? error.message : "Unknown error"}`,
             variant: "destructive",
           })
         }
@@ -172,8 +197,15 @@ export default function HomePage() {
   const readFileContent = (file: File): Promise<string> => {
     return new Promise((resolve, reject) => {
       const reader = new FileReader()
-      reader.onload = (e) => resolve(e.target?.result as string)
-      reader.onerror = (e) => reject(e)
+      reader.onload = (e) => {
+        const result = e.target?.result
+        if (typeof result === "string") {
+          resolve(result)
+        } else {
+          reject(new Error("Failed to read file as text"))
+        }
+      }
+      reader.onerror = () => reject(new Error("File reading failed"))
       reader.readAsText(file)
     })
   }
@@ -392,6 +424,22 @@ export default function HomePage() {
 
         {/* Main Content */}
         <main className="container mx-auto px-4 py-8">
+          {/* AI Processing Notice */}
+          <div className="mb-6">
+            <Card className="bg-blue-900/20 border-blue-500/30">
+              <CardContent className="p-4">
+                <div className="flex items-center space-x-3">
+                  <div className="h-2 w-2 bg-blue-500 rounded-full animate-pulse"></div>
+                  <p className="text-blue-300 text-sm">
+                    <strong>AI Processing:</strong> Currently using simulated AI processing for demonstration. Files are
+                    analyzed with mock data. To integrate real AI, connect to OpenAI, Google Cloud AI, or other AI
+                    services.
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
           <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
             <TabsList className="grid w-full grid-cols-5 bg-slate-800/50 border border-slate-700">
               <TabsTrigger value="upload" className="data-[state=active]:bg-blue-600 data-[state=active]:text-white">
@@ -485,7 +533,7 @@ export default function HomePage() {
                             </div>
                             {file.status === "uploading" && <Progress value={file.progress} className="h-2" />}
                             {file.status === "processing" && (
-                              <div className="text-xs text-blue-400">Processing with AI...</div>
+                              <div className="text-xs text-blue-400">Processing with AI (simulation)...</div>
                             )}
                             {file.status === "completed" && (
                               <div className="text-xs text-green-400">
@@ -511,7 +559,9 @@ export default function HomePage() {
                   <CardContent>
                     <div className="grid grid-cols-2 gap-4">
                       <div className="bg-gradient-to-br from-blue-600/20 to-blue-500/10 p-4 rounded-lg border border-blue-500/20 text-center">
-                        <div className="text-2xl font-bold text-blue-400">{dbFiles.length}</div>
+                        <div className="text-2xl font-bold text-blue-400">
+                          {dbFiles.length + uploadedFiles.filter((f) => f.status === "completed").length}
+                        </div>
                         <div className="text-sm text-slate-400">Total Files</div>
                       </div>
                       <div className="bg-gradient-to-br from-green-600/20 to-green-500/10 p-4 rounded-lg border border-green-500/20 text-center">
@@ -522,15 +572,17 @@ export default function HomePage() {
                       </div>
                       <div className="bg-gradient-to-br from-yellow-600/20 to-yellow-500/10 p-4 rounded-lg border border-yellow-500/20 text-center">
                         <div className="text-2xl font-bold text-yellow-400">
-                          {dbFiles.filter((f) => f.status === "pending").length}
+                          {dbFiles.filter((f) => f.status === "pending").length +
+                            uploadedFiles.filter((f) => f.status === "processing").length}
                         </div>
                         <div className="text-sm text-slate-400">Pending</div>
                       </div>
                       <div className="bg-gradient-to-br from-red-600/20 to-red-500/10 p-4 rounded-lg border border-red-500/20 text-center">
                         <div className="text-2xl font-bold text-red-400">
-                          {dbFiles.filter((f) => f.status === "rejected").length}
+                          {dbFiles.filter((f) => f.status === "rejected").length +
+                            uploadedFiles.filter((f) => f.status === "error").length}
                         </div>
-                        <div className="text-sm text-slate-400">Rejected</div>
+                        <div className="text-sm text-slate-400">Rejected/Failed</div>
                       </div>
                     </div>
                   </CardContent>
@@ -563,7 +615,7 @@ export default function HomePage() {
                   <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
                     <div className="bg-gradient-to-br from-blue-600/20 to-blue-500/10 p-4 rounded-lg border border-blue-500/20 text-center">
                       <div className="text-2xl font-bold text-blue-400">{dbFiles.length}</div>
-                      <div className="text-sm text-slate-400">Total Records</div>
+                      <div className="text-sm text-slate-400">DB Records</div>
                     </div>
                     <div className="bg-gradient-to-br from-green-600/20 to-green-500/10 p-4 rounded-lg border border-green-500/20 text-center">
                       <div className="text-2xl font-bold text-green-400">
@@ -600,10 +652,11 @@ export default function HomePage() {
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
-                  {dbFiles.length > 0 ? (
+                  {dbFiles.length > 0 || uploadedFiles.filter((f) => f.status === "completed").length > 0 ? (
                     <div className="space-y-4">
+                      {/* Show database files */}
                       {dbFiles
-                        .filter((file) => isAdmin || file.user_id === user?.id) // Regular users only see their files
+                        .filter((file) => isAdmin || file.user_id === user?.id)
                         .map((file) => (
                           <div key={file.id} className="bg-slate-700/50 rounded-lg p-4">
                             <div className="flex items-center justify-between">
@@ -663,6 +716,28 @@ export default function HomePage() {
                                   </div>
                                 )}
                               </div>
+                            </div>
+                          </div>
+                        ))}
+
+                      {/* Show completed uploaded files that aren't in database yet */}
+                      {uploadedFiles
+                        .filter((f) => f.status === "completed")
+                        .map((file) => (
+                          <div key={file.id} className="bg-slate-700/50 rounded-lg p-4">
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center space-x-3">
+                                <FileText className="h-5 w-5 text-green-400" />
+                                <div>
+                                  <h4 className="text-white font-medium">{file.file.name}</h4>
+                                  <p className="text-sm text-slate-400">
+                                    Just uploaded • {(file.file.size / 1024).toFixed(1)} KB
+                                  </p>
+                                </div>
+                              </div>
+                              <Badge variant="secondary" className="bg-green-500/20 text-green-400">
+                                Processed
+                              </Badge>
                             </div>
                           </div>
                         ))}

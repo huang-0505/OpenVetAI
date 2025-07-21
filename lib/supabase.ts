@@ -5,23 +5,19 @@ const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey)
 
+// Database types
 export interface ProcessedData {
   id: string
   name: string
-  type: "research-paper" | "clinical-study" | "case-report" | "veterinary-journal" | "other"
-  source: "upload" | "url"
+  type: string
+  source: string
   original_content: string
   processed_content: string
-  extracted_data: {
-    title: string
-    summary: string
-    keyPoints: string[]
-    metadata: Record<string, string>
-  }
+  extracted_data: any
   labels: string[]
-  status: "ready" | "approved" | "rejected" | "processing"
+  status: "pending" | "approved" | "rejected" | "ready"
+  user_id: string
+  uploaded_by: string
   created_at: string
   updated_at: string
-  quality_score?: number
-  user_id?: string
 }

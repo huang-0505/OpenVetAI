@@ -71,43 +71,42 @@
 /* Custom scrollbar for dark theme */
 ::-webkit-scrollbar {
   width: 8px;
-  height: 8px;
 }
 
 ::-webkit-scrollbar-track {
-  background: rgb(30 41 59);
+  @apply bg-slate-800;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: rgb(71 85 105);
-  border-radius: 4px;
+  @apply bg-slate-600 rounded-md;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: rgb(100 116 139);
+  @apply bg-slate-500;
 }
 
-/* Upload zone styles */
+/* Upload zone hover effects */
 .upload-zone {
   transition: all 0.3s ease;
 }
 
 .upload-zone:hover {
   transform: translateY(-2px);
-  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
 }
 
-/* Animation for status indicators */
-@keyframes pulse {
+/* Gradient animations */
+@keyframes gradient-shift {
   0%,
   100% {
-    opacity: 1;
+    background-position: 0% 50%;
   }
   50% {
-    opacity: 0.5;
+    background-position: 100% 50%;
   }
 }
 
-.animate-pulse {
-  animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+.animate-gradient {
+  background-size: 200% 200%;
+  animation: gradient-shift 3s ease infinite;
 }
