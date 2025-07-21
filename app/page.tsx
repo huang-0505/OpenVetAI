@@ -922,167 +922,171 @@ Outcome: Stable condition with regular monitoring`,
                   </CardHeader>
                   <CardContent>
                     {selectedFile ? (
-                      <ScrollArea className="h-[calc(100vh-450px)]">
-                        <div className="space-y-6">
-                          {/* Extracted Information */}
-                          <div className="space-y-4">
-                            <h3 className="text-white font-semibold">Extracted Information</h3>
+                      <>
+                        {/* Scrollable extracted information */}
+                        <ScrollArea className="h-[calc(100vh-450px)]">
+                          <div className="space-y-6">
+                            {/* Extracted Information */}
+                            <div className="space-y-4">
+                              <h3 className="text-white font-semibold">Extracted Information</h3>
 
-                            {/* Title */}
-                            <div>
-                              <Label className="text-slate-300 text-sm font-medium">Title</Label>
-                              <div className="mt-1 p-3 bg-slate-700/50 rounded border border-slate-600">
-                                <p className="text-white text-sm">
-                                  {selectedFile.extracted_data?.title || selectedFile.name}
-                                </p>
-                              </div>
-                            </div>
-
-                            {/* Summary */}
-                            <div>
-                              <Label className="text-slate-300 text-sm font-medium">Summary</Label>
-                              <div className="mt-1 p-3 bg-slate-700/50 rounded border border-slate-600">
-                                <p className="text-white text-sm leading-relaxed">
-                                  {selectedFile.extracted_data?.summary ||
-                                    "This medical journal article presents research findings on clinical outcomes and treatment efficacy."}
-                                </p>
-                              </div>
-                            </div>
-
-                            {/* Key Points */}
-                            <div>
-                              <Label className="text-slate-300 text-sm font-medium">Key Points</Label>
-                              <div className="mt-1 p-3 bg-slate-700/50 rounded border border-slate-600">
-                                <ul className="space-y-1">
-                                  {selectedFile.extracted_data?.keyPoints?.map((point: string, index: number) => (
-                                    <li key={index} className="text-white text-sm flex items-start space-x-2">
-                                      <span className="text-blue-400 mt-1">•</span>
-                                      <span>{point}</span>
-                                    </li>
-                                  )) || (
-                                    <>
-                                      <li className="text-white text-sm flex items-start space-x-2">
-                                        <span className="text-blue-400 mt-1">•</span>
-                                        <span>Study methodology and patient demographics</span>
-                                      </li>
-                                      <li className="text-white text-sm flex items-start space-x-2">
-                                        <span className="text-blue-400 mt-1">•</span>
-                                        <span>Primary and secondary endpoints</span>
-                                      </li>
-                                      <li className="text-white text-sm flex items-start space-x-2">
-                                        <span className="text-blue-400 mt-1">•</span>
-                                        <span>Statistical analysis and results</span>
-                                      </li>
-                                      <li className="text-white text-sm flex items-start space-x-2">
-                                        <span className="text-blue-400 mt-1">•</span>
-                                        <span>Clinical implications and recommendations</span>
-                                      </li>
-                                    </>
-                                  )}
-                                </ul>
-                              </div>
-                            </div>
-
-                            {/* Metadata */}
-                            <div>
-                              <Label className="text-slate-300 text-sm font-medium">Metadata</Label>
-                              <div className="mt-1 grid grid-cols-2 gap-3">
-                                <div className="bg-slate-700/50 p-3 rounded border border-slate-600">
-                                  <div className="text-xs text-slate-400 uppercase tracking-wide">Study Type:</div>
-                                  <div className="text-white text-sm mt-1">
-                                    {selectedFile.extracted_data?.metadata?.studyType || "Clinical Trial"}
-                                  </div>
-                                </div>
-                                <div className="bg-slate-700/50 p-3 rounded border border-slate-600">
-                                  <div className="text-xs text-slate-400 uppercase tracking-wide">Sample Size:</div>
-                                  <div className="text-white text-sm mt-1">
-                                    {selectedFile.extracted_data?.metadata?.sampleSize || "N=245"}
-                                  </div>
-                                </div>
-                                <div className="bg-slate-700/50 p-3 rounded border border-slate-600">
-                                  <div className="text-xs text-slate-400 uppercase tracking-wide">Duration:</div>
-                                  <div className="text-white text-sm mt-1">
-                                    {selectedFile.extracted_data?.metadata?.duration || "12 months"}
-                                  </div>
-                                </div>
-                                <div className="bg-slate-700/50 p-3 rounded border border-slate-600">
-                                  <div className="text-xs text-slate-400 uppercase tracking-wide">
-                                    Primary Endpoint:
-                                  </div>
-                                  <div className="text-white text-sm mt-1">
-                                    {selectedFile.extracted_data?.metadata?.primaryEndpoint || "Treatment efficacy"}
-                                  </div>
+                              {/* Title */}
+                              <div>
+                                <Label className="text-slate-300 text-sm font-medium">Title</Label>
+                                <div className="mt-1 p-3 bg-slate-700/50 rounded border border-slate-600">
+                                  <p className="text-white text-sm">
+                                    {selectedFile.extracted_data?.title || selectedFile.name}
+                                  </p>
                                 </div>
                               </div>
-                            </div>
 
-                            {/* Assign Labels */}
-                            <div>
-                              <Label className="text-slate-300 text-sm font-medium">Assign Labels</Label>
-                              <div className="mt-2 flex flex-wrap gap-2">
-                                {[
-                                  "Medical Research",
-                                  "Clinical Trial",
-                                  "Nutrition",
-                                  "Fitness",
-                                  "Mental Health",
-                                  "Cardiology",
-                                  "Oncology",
-                                  "Pediatrics",
-                                  "Geriatrics",
-                                  "Pharmacology",
-                                  "Diet Plans",
-                                  "Exercise Routines",
-                                  "Wellness Tips",
-                                  "Health News",
-                                ].map((label) => (
-                                  <Badge
-                                    key={label}
-                                    variant="secondary"
-                                    className="bg-blue-500/20 text-blue-400 border-blue-500/30 text-xs cursor-pointer hover:bg-blue-500/30"
-                                  >
-                                    {label}
-                                  </Badge>
-                                ))}
+                              {/* Summary */}
+                              <div>
+                                <Label className="text-slate-300 text-sm font-medium">Summary</Label>
+                                <div className="mt-1 p-3 bg-slate-700/50 rounded border border-slate-600">
+                                  <p className="text-white text-sm leading-relaxed">
+                                    {selectedFile.extracted_data?.summary ||
+                                      "This medical journal article presents research findings on clinical outcomes and treatment efficacy."}
+                                  </p>
+                                </div>
                               </div>
-                            </div>
 
-                            {/* Processed Content Preview */}
-                            <div>
-                              <Label className="text-slate-300 text-sm font-medium">Processed Content Preview</Label>
-                              <div className="mt-1 p-3 bg-slate-700/50 rounded border border-slate-600 max-h-32 overflow-y-auto">
-                                <pre className="text-white text-xs whitespace-pre-wrap font-mono">
-                                  {selectedFile.original_content?.substring(0, 500) ||
-                                    "Contributors\nAcknowledgements\n1. Review of Cardiovascular and Respiratory Physiology\nThe Cardiovascular System\nRespiratory Physiology\n2. The Preanesthetic Workup"}
-                                  ...
-                                </pre>
+                              {/* Key Points */}
+                              <div>
+                                <Label className="text-slate-300 text-sm font-medium">Key Points</Label>
+                                <div className="mt-1 p-3 bg-slate-700/50 rounded border border-slate-600">
+                                  <ul className="space-y-1">
+                                    {selectedFile.extracted_data?.keyPoints?.map((point: string, index: number) => (
+                                      <li key={index} className="text-white text-sm flex items-start space-x-2">
+                                        <span className="text-blue-400 mt-1">•</span>
+                                        <span>{point}</span>
+                                      </li>
+                                    )) || (
+                                      <>
+                                        <li className="text-white text-sm flex items-start space-x-2">
+                                          <span className="text-blue-400 mt-1">•</span>
+                                          <span>Study methodology and patient demographics</span>
+                                        </li>
+                                        <li className="text-white text-sm flex items-start space-x-2">
+                                          <span className="text-blue-400 mt-1">•</span>
+                                          <span>Primary and secondary endpoints</span>
+                                        </li>
+                                        <li className="text-white text-sm flex items-start space-x-2">
+                                          <span className="text-blue-400 mt-1">•</span>
+                                          <span>Statistical analysis and results</span>
+                                        </li>
+                                        <li className="text-white text-sm flex items-start space-x-2">
+                                          <span className="text-blue-400 mt-1">•</span>
+                                          <span>Clinical implications and recommendations</span>
+                                        </li>
+                                      </>
+                                    )}
+                                  </ul>
+                                </div>
+                              </div>
+
+                              {/* Metadata */}
+                              <div>
+                                <Label className="text-slate-300 text-sm font-medium">Metadata</Label>
+                                <div className="mt-1 grid grid-cols-2 gap-3">
+                                  <div className="bg-slate-700/50 p-3 rounded border border-slate-600">
+                                    <div className="text-xs text-slate-400 uppercase tracking-wide">Study Type:</div>
+                                    <div className="text-white text-sm mt-1">
+                                      {selectedFile.extracted_data?.metadata?.studyType || "Clinical Trial"}
+                                    </div>
+                                  </div>
+                                  <div className="bg-slate-700/50 p-3 rounded border border-slate-600">
+                                    <div className="text-xs text-slate-400 uppercase tracking-wide">Sample Size:</div>
+                                    <div className="text-white text-sm mt-1">
+                                      {selectedFile.extracted_data?.metadata?.sampleSize || "N=245"}
+                                    </div>
+                                  </div>
+                                  <div className="bg-slate-700/50 p-3 rounded border border-slate-600">
+                                    <div className="text-xs text-slate-400 uppercase tracking-wide">Duration:</div>
+                                    <div className="text-white text-sm mt-1">
+                                      {selectedFile.extracted_data?.metadata?.duration || "12 months"}
+                                    </div>
+                                  </div>
+                                  <div className="bg-slate-700/50 p-3 rounded border border-slate-600">
+                                    <div className="text-xs text-slate-400 uppercase tracking-wide">
+                                      Primary Endpoint:
+                                    </div>
+                                    <div className="text-white text-sm mt-1">
+                                      {selectedFile.extracted_data?.metadata?.primaryEndpoint || "Treatment efficacy"}
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+
+                              {/* Assign Labels */}
+                              <div>
+                                <Label className="text-slate-300 text-sm font-medium">Assign Labels</Label>
+                                <div className="mt-2 flex flex-wrap gap-2">
+                                  {[
+                                    "Medical Research",
+                                    "Clinical Trial",
+                                    "Nutrition",
+                                    "Fitness",
+                                    "Mental Health",
+                                    "Cardiology",
+                                    "Oncology",
+                                    "Pediatrics",
+                                    "Geriatrics",
+                                    "Pharmacology",
+                                    "Diet Plans",
+                                    "Exercise Routines",
+                                    "Wellness Tips",
+                                    "Health News",
+                                  ].map((label) => (
+                                    <Badge
+                                      key={label}
+                                      variant="secondary"
+                                      className="bg-blue-500/20 text-blue-400 border-blue-500/30 text-xs cursor-pointer hover:bg-blue-500/30"
+                                    >
+                                      {label}
+                                    </Badge>
+                                  ))}
+                                </div>
+                              </div>
+
+                              {/* Processed Content Preview */}
+                              <div>
+                                <Label className="text-slate-300 text-sm font-medium">Processed Content Preview</Label>
+                                <div className="mt-1 p-3 bg-slate-700/50 rounded border border-slate-600 max-h-32 overflow-y-auto">
+                                  <pre className="text-white text-xs whitespace-pre-wrap font-mono">
+                                    {selectedFile.original_content?.substring(0, 500) ||
+                                      "Contributors\nAcknowledgements\n1. Review of Cardiovascular and Respiratory Physiology\nThe Cardiovascular System\nRespiratory Physiology\n2. The Preanesthetic Workup"}
+                                    ...
+                                  </pre>
+                                </div>
                               </div>
                             </div>
                           </div>
+                        </ScrollArea>
 
-                          {/* Action Buttons - Always show for pending files when admin */}
-                          {isAdmin && selectedFile && selectedFile.status === "pending" && (
-                            <div className="mt-6 pt-4 border-t border-slate-600">
-                              <div className="flex space-x-3">
-                                <Button
-                                  onClick={() => rejectFile(selectedFile.id)}
-                                  variant="outline"
-                                  className="flex-1 border-red-500/50 text-red-400 hover:bg-red-500/10"
-                                >
-                                  Reject File
-                                </Button>
-                                <Button
-                                  onClick={() => approveFile(selectedFile.id)}
-                                  className="flex-1 bg-green-600 hover:bg-green-700 text-white"
-                                >
-                                  <CheckCircle className="h-4 w-4 mr-2" />
-                                  Approve File
-                                </Button>
-                              </div>
+                        {/* Action buttons – only for admins on pending files */}
+                        {isAdmin && selectedFile.status === "pending" && (
+                          <div className="sticky bottom-0 bg-slate-800/90 backdrop-blur-sm border-t border-slate-600 p-4 -mx-6 -mb-6">
+                            <div className="flex space-x-3">
+                              <Button
+                                onClick={() => rejectFile(selectedFile.id)}
+                                variant="destructive"
+                                size="lg"
+                                className="flex-1 bg-red-600 hover:bg-red-700 text-white"
+                              >
+                                ❌ Reject File
+                              </Button>
+                              <Button
+                                onClick={() => approveFile(selectedFile.id)}
+                                size="lg"
+                                className="flex-1 bg-green-600 hover:bg-green-700 text-white"
+                              >
+                                ✅ Approve File
+                              </Button>
                             </div>
-                          )}
-                        </div>
-                      </ScrollArea>
+                          </div>
+                        )}
+                      </>
                     ) : (
                       <div className="text-center py-12">
                         <FileText className="h-16 w-16 text-slate-500 mx-auto mb-4" />
