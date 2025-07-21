@@ -199,18 +199,8 @@ export default function HomePage() {
             console.warn("Database operation failed:", dbError)
           }
 
-          // Update status to completed
-          setUploadedFiles((prev) =>
-            prev.map((f) =>
-              f.id === uploadedFile.id
-                ? {
-                    ...f,
-                    status: "completed",
-                    processedData: dbRecord || processedData,
-                  }
-                : f,
-            ),
-          )
+          // Remove from uploadedFiles since it's now in database
+          setUploadedFiles((prev) => prev.filter((f) => f.id !== uploadedFile.id))
 
           toast({
             title: "File processed successfully",
@@ -400,7 +390,7 @@ export default function HomePage() {
 
   const pendingFiles = dbFiles.filter((f) => f.status === "pending")
   const approvedFiles = dbFiles.filter((f) => f.status === "approved")
-  const allFiles = [...dbFiles, ...uploadedFiles.filter((f) => f.status === "completed")]
+  const allFiles = dbFiles
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
