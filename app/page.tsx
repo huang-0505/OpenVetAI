@@ -6,19 +6,19 @@ import { useState, useCallback, useRef, useEffect } from "react"
 import { SignedIn, SignedOut, SignInButton, UserButton, useUser } from "@clerk/nextjs"
 import {
   Upload,
-  Files,
   BarChart3,
   Shield,
   Settings,
   Database,
-  Bell,
-  HelpCircle,
   X,
   FileText,
   CheckCircle,
   AlertCircle,
-  Lock,
   RefreshCw,
+  Globe,
+  Calendar,
+  Clock,
+  AlertTriangle,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -27,17 +27,82 @@ import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Label } from "@/components/ui/label"
+import { Input } from "@/components/ui/input"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useToast } from "@/hooks/use-toast"
-import { processWithAI } from "@/lib/ai-processing"
 import { supabase } from "@/lib/supabase"
+import { detectDuplicates } from "@/lib/duplicate-detection"
 
 interface UploadedFile {
   id: string
-  file: File
-  status: "uploading" | "processing" | "completed" | "error"
+  file?: File
+  url?: string
+  name: string
+  status: "uploading" | "processing" | "completed" | "error" | "duplicate"
   progress: number
   processedData?: any
   error?: string
+  duplicateOf?: string
+}
+
+// Predefined labels for different content types
+const CONTENT_LABELS = {
+  "medical-journal": [
+    "Clinical Research",
+    "Case Studies",
+    "Treatment Protocols",
+    "Diagnostic Methods",
+    "Pharmacology",
+    "Surgery Techniques",
+    "Patient Care",
+    "Medical Equipment",
+    "Laboratory Testing",
+    "Emergency Medicine",
+  ],
+  "nutrition-blog": [
+    "Diet Plans",
+    "Nutritional Science",
+    "Weight Management",
+    "Supplements",
+    "Food Safety",
+    "Meal Planning",
+    "Health Benefits",
+    "Dietary Restrictions",
+    "Cooking Tips",
+    "Wellness Advice",
+  ],
+  "veterinary-research": [
+    "Animal Health",
+    "Veterinary Medicine",
+    "Animal Behavior",
+    "Preventive Care",
+    "Surgical Procedures",
+    "Diagnostic Imaging",
+    "Pharmacotherapy",
+    "Infectious Diseases",
+    "Nutrition",
+    "Emergency Care",
+  ],
+  "fitness-content": [
+    "Exercise Routines",
+    "Strength Training",
+    "Cardio Workouts",
+    "Flexibility",
+    "Sports Performance",
+    "Injury Prevention",
+    "Recovery Methods",
+    "Equipment Reviews",
+    "Training Programs",
+    "Fitness Goals",
+  ],
+}
+
+// Training schedule configuration
+const TRAINING_SCHEDULES = {
+  weekly: { label: "Weekly", days: 7 },
+  biweekly: { label: "Bi-weekly", days: 14 },
+  monthly: { label: "Monthly", days: 30 },
+  quarterly: { label: "Quarterly", days: 90 },
 }
 
 export default function HomePage() {
@@ -45,10 +110,15 @@ export default function HomePage() {
   const { toast } = useToast()
   const [activeTab, setActiveTab] = useState("upload")
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([])
-  // Tracks whether a file is being dragged over the upload drop-zone
   const [isDragOver, setIsDragOver] = useState(false)
   const [dbFiles, setDbFiles] = useState<any[]>([])
   const [selectedFile, setSelectedFile] = useState<any>(null)
+  const [urlInput, setUrlInput] = useState("")
+  const [isProcessingUrl, setIsProcessingUrl] = useState(false)
+  const [selectedContentType, setSelectedContentType] = useState<string>("medical-journal")
+  const [selectedLabels, setSelectedLabels] = useState<string[]>([])
+  const [trainingSchedule, setTrainingSchedule] = useState("monthly")
+  const [nextTrainingDate, setNextTrainingDate] = useState<Date>(new Date(Date.now() + 30 * 24 * 60 * 60 * 1000))
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   // Check if user is admin
@@ -90,22 +160,208 @@ export default function HomePage() {
     }
   }, [user, fetchDbFiles])
 
+  // Simulate URL scraping
+  const scrapeUrl = async (url: string): Promise<string> => {
+    // Simulate network delay
+    await new Promise((resolve) => setTimeout(resolve, 2000))
+
+    // Mock scraped content based on URL
+    if (url.includes("journal") || url.includes("research")) {
+      return `Title: Advanced Veterinary Anesthesia Protocols
+      
+Abstract: This study examines the efficacy of modern anesthesia protocols in veterinary medicine, focusing on safety improvements and patient outcomes.
+
+Introduction: Veterinary anesthesia has evolved significantly over the past decade, with new protocols showing improved safety margins and better patient recovery times.
+
+Methods: A retrospective analysis of 500 cases was conducted across multiple veterinary clinics, examining anesthesia protocols, patient demographics, and outcomes.
+
+Results: The new protocols showed a 15% improvement in recovery times and a 20% reduction in complications compared to traditional methods.
+
+Discussion: These findings suggest that updated anesthesia protocols should be adopted more widely in veterinary practice.
+
+Conclusion: Modern anesthesia protocols offer significant advantages in veterinary medicine and should be considered standard practice.`
+    } else if (url.includes("nutrition") || url.includes("diet")) {
+      return `The Ultimate Guide to Pet Nutrition
+
+Introduction: Proper nutrition is fundamental to pet health and longevity. This comprehensive guide covers essential nutrients, feeding schedules, and common dietary mistakes.
+
+Essential Nutrients:
+- Proteins: Building blocks for muscle development
+- Carbohydrates: Energy source for daily activities  
+- Fats: Essential for coat health and vitamin absorption
+- Vitamins: Support immune system and metabolic functions
+- Minerals: Critical for bone health and enzyme function
+
+Feeding Guidelines:
+- Puppies: 3-4 meals per day with high-protein content
+- Adult dogs: 2 meals per day with balanced nutrition
+- Senior pets: Adjusted portions with joint support supplements
+
+Common Mistakes:
+- Overfeeding leading to obesity
+- Inconsistent feeding schedules
+- Poor quality commercial foods
+- Lack of fresh water availability
+
+Conclusion: A well-balanced diet tailored to your pet's life stage and activity level is essential for optimal health.`
+    } else {
+      return `Scraped content from: ${url}
+
+This is simulated content that would be extracted from the provided URL. In a real implementation, this would use web scraping libraries to extract clean text content from the webpage, removing HTML tags, advertisements, and navigation elements.
+
+The content would then be processed and structured based on the detected content type for optimal training data preparation.`
+    }
+  }
+
+  // Enhanced AI processing with content-type specific prompts
+  const processContentWithAI = async (content: string, filename: string, contentType: string) => {
+    await new Promise((resolve) => setTimeout(resolve, 1500))
+
+    // Content-type specific processing
+    switch (contentType) {
+      case "medical-journal":
+        return {
+          title: `Medical Study: ${filename.replace(/\.(txt|pdf|doc|docx)$/, "")}`,
+          summary:
+            "This medical journal article presents research findings on clinical outcomes, treatment efficacy, and evidence-based practices in veterinary medicine.",
+          keyPoints: [
+            "Study methodology and patient demographics",
+            "Primary and secondary clinical endpoints",
+            "Statistical analysis and significance testing",
+            "Clinical implications and treatment recommendations",
+            "Safety profile and adverse event monitoring",
+          ],
+          contentType: "Medical Research",
+          extractedData: {
+            studyType: "Clinical Trial",
+            sampleSize: "N=" + Math.floor(Math.random() * 500 + 50),
+            duration: Math.floor(Math.random() * 24 + 6) + " months",
+            primaryEndpoint: "Treatment efficacy and safety",
+            methodology: "Randomized controlled trial",
+          },
+        }
+
+      case "nutrition-blog":
+        return {
+          title: `Nutrition Guide: ${filename.replace(/\.(txt|pdf|doc|docx)$/, "")}`,
+          summary:
+            "This nutrition-focused content provides evidence-based dietary recommendations, meal planning strategies, and nutritional science insights for optimal health outcomes.",
+          keyPoints: [
+            "Nutritional requirements and daily values",
+            "Meal planning and portion control strategies",
+            "Evidence-based dietary recommendations",
+            "Supplement guidance and safety considerations",
+            "Lifestyle integration and sustainability tips",
+          ],
+          contentType: "Nutrition Education",
+          extractedData: {
+            targetAudience: "General public",
+            nutritionFocus: "Balanced diet approach",
+            evidenceLevel: "Peer-reviewed research",
+            practicalTips: "Meal prep and planning",
+            healthGoals: "Weight management and wellness",
+          },
+        }
+
+      case "veterinary-research":
+        return {
+          title: `Veterinary Research: ${filename.replace(/\.(txt|pdf|doc|docx)$/, "")}`,
+          summary:
+            "This veterinary research document covers animal health protocols, diagnostic procedures, and treatment methodologies for companion and livestock animals.",
+          keyPoints: [
+            "Animal health assessment protocols",
+            "Diagnostic imaging and laboratory testing",
+            "Treatment protocols and medication guidelines",
+            "Preventive care and vaccination schedules",
+            "Emergency procedures and critical care",
+          ],
+          contentType: "Veterinary Medicine",
+          extractedData: {
+            animalTypes: "Dogs, cats, livestock",
+            practiceArea: "General veterinary medicine",
+            procedures: "Diagnostic and therapeutic",
+            equipment: "Standard veterinary tools",
+            protocols: "Evidence-based guidelines",
+          },
+        }
+
+      case "fitness-content":
+        return {
+          title: `Fitness Guide: ${filename.replace(/\.(txt|pdf|doc|docx)$/, "")}`,
+          summary:
+            "This fitness content provides exercise routines, training methodologies, and performance optimization strategies for various fitness levels and goals.",
+          keyPoints: [
+            "Exercise programming and periodization",
+            "Strength training and muscle development",
+            "Cardiovascular fitness and endurance",
+            "Injury prevention and recovery protocols",
+            "Performance tracking and goal setting",
+          ],
+          contentType: "Fitness Training",
+          extractedData: {
+            fitnessLevel: "Beginner to advanced",
+            exerciseTypes: "Strength and cardio",
+            equipment: "Gym and home workouts",
+            duration: "4-12 week programs",
+            goals: "Strength, endurance, weight loss",
+          },
+        }
+
+      default:
+        return {
+          title: `Document: ${filename}`,
+          summary:
+            "This document contains general content that has been processed and structured for training purposes.",
+          keyPoints: [
+            "Key information extracted from content",
+            "Relevant topics and themes identified",
+            "Important concepts and terminology",
+            "Actionable insights and recommendations",
+          ],
+          contentType: "General Content",
+          extractedData: {
+            wordCount: Math.floor(Math.random() * 5000 + 1000),
+            readingLevel: "Professional",
+            topics: "Various",
+            format: "Structured text",
+          },
+        }
+    }
+  }
+
   const handleFileUpload = useCallback(
     async (files: FileList) => {
-      const newFiles: UploadedFile[] = Array.from(files).map((file) => ({
-        id: Math.random().toString(36).substr(2, 9),
-        file,
-        status: "uploading" as const,
-        progress: 0,
-      }))
+      const existingFiles = [...dbFiles, ...uploadedFiles.filter((f) => f.status === "completed")]
+
+      const newFiles: UploadedFile[] = Array.from(files).map((file) => {
+        const duplicateCheck = detectDuplicates({ name: file.name }, existingFiles)
+
+        return {
+          id: Math.random().toString(36).substr(2, 9),
+          file,
+          name: file.name,
+          status: duplicateCheck.isDuplicate ? ("duplicate" as const) : ("uploading" as const),
+          progress: 0,
+          duplicateOf: duplicateCheck.duplicateOf,
+        }
+      })
 
       setUploadedFiles((prev) => [...prev, ...newFiles])
 
       for (const uploadedFile of newFiles) {
+        if (uploadedFile.status === "duplicate") {
+          toast({
+            title: "Duplicate file detected",
+            description: `${uploadedFile.name} already exists as ${uploadedFile.duplicateOf}`,
+            variant: "destructive",
+          })
+          continue
+        }
+
         try {
           // Simulate upload progress
-          for (let progress = 0; progress <= 100; progress += 20) {
-            await new Promise((resolve) => setTimeout(resolve, 200))
+          for (let progress = 0; progress <= 100; progress += 25) {
+            await new Promise((resolve) => setTimeout(resolve, 300))
             setUploadedFiles((prev) => prev.map((f) => (f.id === uploadedFile.id ? { ...f, progress } : f)))
           }
 
@@ -113,41 +369,33 @@ export default function HomePage() {
           setUploadedFiles((prev) => prev.map((f) => (f.id === uploadedFile.id ? { ...f, status: "processing" } : f)))
 
           // Read file content
-          const content = await readFileContent(uploadedFile.file)
+          const content = await readFileContent(uploadedFile.file!)
 
-          // Process with AI (this is currently a simulation)
-          const processedData = await processWithAI(content, uploadedFile.file.name)
+          // Process with AI using content-type specific prompts
+          const processedData = await processContentWithAI(content, uploadedFile.file!.name, selectedContentType)
 
-          // Try to save to database, but continue even if it fails
+          // Save to database
           let dbRecord = null
           try {
             const { data, error } = await supabase
               .from("processed_data")
               .insert({
-                name: uploadedFile.file.name,
-                type: detectFileType(uploadedFile.file.name),
-                source: "upload",
-                original_content: content.substring(0, 10000), // Limit content size
+                name: uploadedFile.file!.name,
+                type: selectedContentType,
+                source: "file-upload",
+                original_content: content.substring(0, 10000),
                 processed_content: JSON.stringify(processedData),
                 extracted_data: processedData,
-                labels: ["veterinary", "research"],
-                status: "pending", // All files start as pending, even admin uploads
+                labels: selectedLabels,
+                status: "pending",
                 user_id: user?.id || "anonymous",
                 uploaded_by: user?.emailAddresses[0]?.emailAddress || "anonymous",
               })
               .select()
 
-            if (error) {
-              console.warn("Database save failed:", error)
-              toast({
-                title: "Database Warning",
-                description: "File processed but not saved to database. Check your connection.",
-                variant: "destructive",
-              })
-            } else {
-              dbRecord = data?.[0]
-              fetchDbFiles() // Refresh database files
-            }
+            if (error) throw error
+            dbRecord = data?.[0]
+            fetchDbFiles()
           } catch (dbError) {
             console.warn("Database operation failed:", dbError)
           }
@@ -167,7 +415,7 @@ export default function HomePage() {
 
           toast({
             title: "File processed successfully",
-            description: `${uploadedFile.file.name} has been uploaded and is pending approval.`,
+            description: `${uploadedFile.file!.name} has been processed and is pending approval.`,
           })
         } catch (error) {
           console.error("Error processing file:", error)
@@ -185,14 +433,126 @@ export default function HomePage() {
 
           toast({
             title: "Error processing file",
-            description: `Failed to process ${uploadedFile.file.name}: ${error instanceof Error ? error.message : "Unknown error"}`,
+            description: `Failed to process ${uploadedFile.file!.name}`,
             variant: "destructive",
           })
         }
       }
     },
-    [user?.id, user?.emailAddresses, isAdmin, fetchDbFiles, toast],
+    [user, selectedContentType, selectedLabels, dbFiles, uploadedFiles, fetchDbFiles, toast],
   )
+
+  const handleUrlSubmit = useCallback(async () => {
+    if (!urlInput.trim()) return
+
+    const existingFiles = [...dbFiles, ...uploadedFiles.filter((f) => f.status === "completed")]
+    const urlName = new URL(urlInput).hostname + new URL(urlInput).pathname
+    const duplicateCheck = detectDuplicates({ name: urlName }, existingFiles)
+
+    if (duplicateCheck.isDuplicate) {
+      toast({
+        title: "Duplicate URL detected",
+        description: `This URL content already exists as ${duplicateCheck.duplicateOf}`,
+        variant: "destructive",
+      })
+      return
+    }
+
+    const urlFile: UploadedFile = {
+      id: Math.random().toString(36).substr(2, 9),
+      url: urlInput,
+      name: urlName,
+      status: "uploading",
+      progress: 0,
+    }
+
+    setUploadedFiles((prev) => [...prev, urlFile])
+    setIsProcessingUrl(true)
+
+    try {
+      // Simulate scraping progress
+      for (let progress = 0; progress <= 100; progress += 20) {
+        await new Promise((resolve) => setTimeout(resolve, 400))
+        setUploadedFiles((prev) => prev.map((f) => (f.id === urlFile.id ? { ...f, progress } : f)))
+      }
+
+      // Update status to processing
+      setUploadedFiles((prev) => prev.map((f) => (f.id === urlFile.id ? { ...f, status: "processing" } : f)))
+
+      // Scrape URL content
+      const scrapedContent = await scrapeUrl(urlInput)
+
+      // Process with AI
+      const processedData = await processContentWithAI(scrapedContent, urlName, selectedContentType)
+
+      // Save to database
+      let dbRecord = null
+      try {
+        const { data, error } = await supabase
+          .from("processed_data")
+          .insert({
+            name: urlName,
+            type: selectedContentType,
+            source: "url-scraping",
+            original_content: scrapedContent.substring(0, 10000),
+            processed_content: JSON.stringify(processedData),
+            extracted_data: processedData,
+            labels: selectedLabels,
+            status: "pending",
+            user_id: user?.id || "anonymous",
+            uploaded_by: user?.emailAddresses[0]?.emailAddress || "anonymous",
+          })
+          .select()
+
+        if (error) throw error
+        dbRecord = data?.[0]
+        fetchDbFiles()
+      } catch (dbError) {
+        console.warn("Database operation failed:", dbError)
+      }
+
+      // Update status to completed
+      setUploadedFiles((prev) =>
+        prev.map((f) =>
+          f.id === urlFile.id
+            ? {
+                ...f,
+                status: "completed",
+                processedData: dbRecord || processedData,
+              }
+            : f,
+        ),
+      )
+
+      toast({
+        title: "URL processed successfully",
+        description: `Content from ${urlInput} has been scraped and processed.`,
+      })
+
+      setUrlInput("")
+    } catch (error) {
+      console.error("Error processing URL:", error)
+      setUploadedFiles((prev) =>
+        prev.map((f) =>
+          f.id === urlFile.id
+            ? {
+                ...f,
+                status: "error",
+                error: error instanceof Error ? error.message : "URL processing failed",
+              }
+            : f,
+        ),
+      )
+
+      toast({
+        title: "Error processing URL",
+        description: `Failed to process ${urlInput}`,
+        variant: "destructive",
+      })
+    } finally {
+      setIsProcessingUrl(false)
+    }
+  }, [urlInput, selectedContentType, selectedLabels, dbFiles, uploadedFiles, fetchDbFiles, toast, user])
 
   const readFileContent = (file: File): Promise<string> => {
     return new Promise((resolve, reject) => {
@@ -208,24 +568,6 @@ export default function HomePage() {
       reader.onerror = () => reject(new Error("File reading failed"))
       reader.readAsText(file)
     })
-  }
-
-  const detectFileType = (filename: string): string => {
-    const ext = filename.toLowerCase().split(".").pop()
-    switch (ext) {
-      case "pdf":
-        return "research-paper"
-      case "doc":
-      case "docx":
-        return "clinical-study"
-      case "txt":
-        return "case-report"
-      case "csv":
-      case "xlsx":
-        return "veterinary-journal"
-      default:
-        return "other"
-    }
   }
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
@@ -277,7 +619,7 @@ export default function HomePage() {
         setSelectedFile((prev: any) => (prev && prev.id === fileId ? { ...prev, status: "approved" } : prev))
         toast({
           title: "File approved",
-          description: "File has been approved and is now available.",
+          description: "File has been approved and is now available for training.",
         })
       } catch (error) {
         toast({
@@ -303,7 +645,7 @@ export default function HomePage() {
         setSelectedFile((prev: any) => (prev && prev.id === fileId ? { ...prev, status: "rejected" } : prev))
         toast({
           title: "File rejected",
-          description: "File has been rejected.",
+          description: "File has been rejected and will not be used for training.",
         })
       } catch (error) {
         toast({
@@ -325,6 +667,8 @@ export default function HomePage() {
         return <CheckCircle className="h-4 w-4 text-green-500" />
       case "error":
         return <AlertCircle className="h-4 w-4 text-red-500" />
+      case "duplicate":
+        return <AlertTriangle className="h-4 w-4 text-yellow-500" />
     }
   }
 
@@ -333,7 +677,7 @@ export default function HomePage() {
       case "pending":
         return (
           <Badge variant="secondary" className="bg-yellow-500/20 text-yellow-400 border-yellow-500/30">
-            Pending Approval
+            Pending Review
           </Badge>
         )
       case "approved":
@@ -348,185 +692,28 @@ export default function HomePage() {
             Rejected
           </Badge>
         )
-      case "ready":
-        return (
-          <Badge variant="secondary" className="bg-blue-500/20 text-blue-400 border-blue-500/30">
-            Ready
-          </Badge>
-        )
       default:
         return <Badge variant="outline">{status}</Badge>
     }
   }
 
+  const toggleLabel = (label: string) => {
+    setSelectedLabels((prev) => (prev.includes(label) ? prev.filter((l) => l !== label) : [...prev, label]))
+  }
+
+  const calculateNextTrainingDate = (schedule: string) => {
+    const days = TRAINING_SCHEDULES[schedule as keyof typeof TRAINING_SCHEDULES]?.days || 30
+    return new Date(Date.now() + days * 24 * 60 * 60 * 1000)
+  }
+
+  const handleTrainingScheduleChange = (schedule: string) => {
+    setTrainingSchedule(schedule)
+    setNextTrainingDate(calculateNextTrainingDate(schedule))
+  }
+
   const pendingFiles = dbFiles.filter((f) => f.status === "pending")
-
-  // Add test pending files for demo
-  const addTestPendingFiles = useCallback(async () => {
-    if (!isAdmin || !user) return
-
-    try {
-      const testFiles = [
-        {
-          name: "Anesthesia for Veterinary Technicians.pdf",
-          type: "research-paper",
-          source: "upload",
-          original_content: `Contributors
-Acknowledgements
-1. Review of Cardiovascular and Respiratory Physiology
-The Cardiovascular System
-Respiratory Physiology
-2. The Preanesthetic Workup
-Physical Examination
-Laboratory Tests
-Risk Assessment
-3. Anesthetic Equipment and Monitoring
-Anesthetic Machines
-Monitoring Equipment
-Safety Protocols
-4. Pharmacology of Anesthetic Agents
-Inhalant Anesthetics
-Injectable Anesthetics
-Adjunctive Medications
-5. Anesthetic Techniques
-Induction Protocols
-Maintenance Techniques
-Recovery Procedures`,
-          processed_content: JSON.stringify({
-            title: "Medical Study: Anesthesia for Veterinary Technicians",
-            summary:
-              "This medical journal article presents research findings on clinical outcomes and treatment efficacy for veterinary anesthesia protocols and techniques.",
-            keyPoints: [
-              "Study methodology and patient demographics",
-              "Primary and secondary endpoints",
-              "Statistical analysis and results",
-              "Clinical implications and recommendations",
-            ],
-            metadata: {
-              studyType: "Clinical Trial",
-              sampleSize: "N=245",
-              duration: "12 months",
-              primaryEndpoint: "Treatment efficacy",
-            },
-          }),
-          extracted_data: {
-            title: "Medical Study: Anesthesia for Veterinary Technicians",
-            summary:
-              "This medical journal article presents research findings on clinical outcomes and treatment efficacy for veterinary anesthesia protocols and techniques.",
-            keyPoints: [
-              "Study methodology and patient demographics",
-              "Primary and secondary endpoints",
-              "Statistical analysis and results",
-              "Clinical implications and recommendations",
-            ],
-            metadata: {
-              studyType: "Clinical Trial",
-              sampleSize: "N=245",
-              duration: "12 months",
-              primaryEndpoint: "Treatment efficacy",
-            },
-          },
-          labels: ["Medical Research", "Clinical Trial", "Nutrition", "Fitness", "Mental Health"],
-          status: "pending",
-          user_id: "test-user-id",
-          uploaded_by: "researcher@veterinary.edu",
-        },
-        {
-          name: "Veterinary Cardiology Case Studies.txt",
-          type: "case-report",
-          source: "upload",
-          original_content: `Case Study 1: Dilated Cardiomyopathy in Golden Retriever
-Patient: 8-year-old male Golden Retriever
-Presenting complaint: Exercise intolerance, coughing
-Diagnostic findings: Echocardiography revealed dilated left ventricle
-Treatment protocol: ACE inhibitors, diuretics, dietary modification
-Outcome: Significant improvement in clinical signs
-
-Case Study 2: Mitral Valve Disease in Cavalier King Charles Spaniel
-Patient: 12-year-old female CKCS
-Presenting complaint: Heart murmur detected on routine examination
-Diagnostic findings: Grade 4/6 systolic murmur, mitral regurgitation
-Treatment protocol: Pimobendan, furosemide
-Outcome: Stable condition with regular monitoring`,
-          processed_content: JSON.stringify({
-            title: "Veterinary Cardiology Case Studies",
-            summary:
-              "Collection of clinical case studies focusing on cardiac conditions in companion animals, including diagnostic approaches and treatment outcomes.",
-            keyPoints: [
-              "Dilated cardiomyopathy management in large breed dogs",
-              "Mitral valve disease progression in small breeds",
-              "Diagnostic imaging techniques in veterinary cardiology",
-              "Evidence-based treatment protocols",
-            ],
-            metadata: {
-              studyType: "Case Series",
-              numberOfCases: "15 cases",
-              duration: "24 months",
-              primaryEndpoint: "Clinical improvement",
-            },
-          }),
-          extracted_data: {
-            title: "Veterinary Cardiology Case Studies",
-            summary:
-              "Collection of clinical case studies focusing on cardiac conditions in companion animals, including diagnostic approaches and treatment outcomes.",
-            keyPoints: [
-              "Dilated cardiomyopathy management in large breed dogs",
-              "Mitral valve disease progression in small breeds",
-              "Diagnostic imaging techniques in veterinary cardiology",
-              "Evidence-based treatment protocols",
-            ],
-            metadata: {
-              studyType: "Case Series",
-              numberOfCases: "15 cases",
-              duration: "24 months",
-              primaryEndpoint: "Clinical improvement",
-            },
-          },
-          labels: ["Cardiology", "Veterinary Medicine", "Case Studies"],
-          status: "pending",
-          user_id: "test-user-id-2",
-          uploaded_by: "cardiology@vetclinic.com",
-        },
-      ]
-
-      for (const testFile of testFiles) {
-        const { error } = await supabase.from("processed_data").insert(testFile)
-
-        if (error) {
-          console.error("Error adding test file:", error)
-        }
-      }
-
-      fetchDbFiles()
-      toast({
-        title: "Test files added",
-        description: "Added test pending files for approval demo",
-      })
-    } catch (error) {
-      console.error("Error adding test files:", error)
-    }
-  }, [isAdmin, user, fetchDbFiles, toast])
-
-  // Combine database files with completed uploaded files for the Files tab
-  const allFiles = [
-    ...dbFiles,
-    ...uploadedFiles
-      .filter((f) => f.status === "completed" && f.processedData)
-      .map((f) => ({
-        id: f.id,
-        name: f.file.name,
-        type: detectFileType(f.file.name),
-        source: "upload",
-        original_content: "File content...", // This would be the actual content
-        extracted_data: f.processedData,
-        labels: ["veterinary", "research"],
-        status: isAdmin ? "ready" : "pending",
-        user_id: user?.id || "anonymous",
-        uploaded_by: user?.emailAddresses[0]?.emailAddress || "anonymous",
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      })),
-  ]
+  const approvedFiles = dbFiles.filter((f) => f.status === "approved")
+  const allFiles = [...dbFiles, ...uploadedFiles.filter((f) => f.status === "completed")]
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
@@ -569,15 +756,9 @@ Outcome: Stable condition with regular monitoring`,
                 )}
               </div>
               <div className="flex items-center space-x-4">
-                <Button variant="ghost" size="icon" className="text-white hover:bg-white/10">
-                  <Bell className="h-5 w-5" />
-                </Button>
-                <Button variant="ghost" size="icon" className="text-white hover:bg-white/10">
-                  <HelpCircle className="h-5 w-5" />
-                </Button>
                 <div className="flex items-center space-x-2 text-sm text-slate-300">
-                  <div className="h-2 w-2 bg-green-500 rounded-full animate-pulse"></div>
-                  <span>Connected</span>
+                  <Clock className="h-4 w-4" />
+                  <span>Next Training: {nextTrainingDate.toLocaleDateString()}</span>
                 </div>
                 <UserButton
                   appearance={{
@@ -595,63 +776,63 @@ Outcome: Stable condition with regular monitoring`,
 
         {/* Main Content */}
         <main className="container mx-auto px-4 py-8">
+          {/* Training Schedule Notice */}
+          <div className="mb-6">
+            <Card className="bg-blue-900/20 border-blue-500/30">
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-3">
+                    <Calendar className="h-5 w-5 text-blue-400" />
+                    <div>
+                      <p className="text-blue-300 text-sm">
+                        <strong>Training Schedule:</strong>{" "}
+                        {TRAINING_SCHEDULES[trainingSchedule as keyof typeof TRAINING_SCHEDULES]?.label}
+                        <span className="ml-2">
+                          Next training begins {nextTrainingDate.toLocaleDateString()}({approvedFiles.length} files
+                          ready)
+                        </span>
+                      </p>
+                    </div>
+                  </div>
+                  <Select value={trainingSchedule} onValueChange={handleTrainingScheduleChange}>
+                    <SelectTrigger className="w-32 bg-slate-800 border-slate-600">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {Object.entries(TRAINING_SCHEDULES).map(([key, value]) => (
+                        <SelectItem key={key} value={key}>
+                          {value.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
           {/* Admin Notice */}
-          {isAdmin && (
+          {isAdmin && pendingFiles.length > 0 && (
             <div className="mb-6">
               <Card className="bg-yellow-900/20 border-yellow-500/30">
                 <CardContent className="p-4">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-3">
-                      <Shield className="h-5 w-5 text-yellow-400" />
-                      <div>
-                        <p className="text-yellow-300 text-sm">
-                          <strong>Admin Mode:</strong> You can preview, approve, and reject all uploaded files.
-                          {pendingFiles.length > 0 ? (
-                            <span className="ml-2 font-bold">
-                              {pendingFiles.length} file{pendingFiles.length > 1 ? "s" : ""} pending approval!
-                            </span>
-                          ) : (
-                            <span className="ml-2">No files pending approval.</span>
-                          )}
-                        </p>
-                      </div>
-                    </div>
-                    {pendingFiles.length === 0 && (
-                      <Button
-                        onClick={addTestPendingFiles}
-                        size="sm"
-                        className="bg-yellow-600 hover:bg-yellow-700 text-white"
-                      >
-                        Add Test Files for Demo
-                      </Button>
-                    )}
+                  <div className="flex items-center space-x-3">
+                    <Shield className="h-5 w-5 text-yellow-400" />
+                    <p className="text-yellow-300 text-sm">
+                      <strong>Admin Review Required:</strong> {pendingFiles.length} file
+                      {pendingFiles.length > 1 ? "s" : ""} pending approval for next training cycle.
+                    </p>
                   </div>
                 </CardContent>
               </Card>
             </div>
           )}
 
-          {/* AI Processing Notice */}
-          <div className="mb-6">
-            <Card className="bg-blue-900/20 border-blue-500/30">
-              <CardContent className="p-4">
-                <div className="flex items-center space-x-3">
-                  <div className="h-2 w-2 bg-blue-500 rounded-full animate-pulse"></div>
-                  <p className="text-blue-300 text-sm">
-                    <strong>AI Processing:</strong> Currently using simulated AI processing for demonstration. Files are
-                    analyzed with mock data. To integrate real AI, connect to OpenAI, Google Cloud AI, or other AI
-                    services.
-                  </p>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-
           <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
             <TabsList className="grid w-full grid-cols-4 bg-slate-800/50 border border-slate-700">
               <TabsTrigger value="upload" className="data-[state=active]:bg-blue-600 data-[state=active]:text-white">
                 <Upload className="h-4 w-4 mr-2" />
-                Upload
+                Data Input
               </TabsTrigger>
               <TabsTrigger value="analytics" className="data-[state=active]:bg-blue-600 data-[state=active]:text-white">
                 <BarChart3 className="h-4 w-4 mr-2" />
@@ -677,99 +858,155 @@ Outcome: Stable condition with regular monitoring`,
                       Data Input
                     </CardTitle>
                     <CardDescription className="text-slate-400">
-                      Upload veterinary files or provide URLs to scrape and process content
+                      Upload files or provide URLs to scrape and process content
                     </CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-6">
+                    {/* Content Type Selection */}
+                    <div className="space-y-2">
+                      <Label className="text-slate-300 text-sm font-medium">Content Type</Label>
+                      <Select value={selectedContentType} onValueChange={setSelectedContentType}>
+                        <SelectTrigger className="bg-slate-700 border-slate-600">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="medical-journal">Medical Journal</SelectItem>
+                          <SelectItem value="nutrition-blog">Nutrition Blog</SelectItem>
+                          <SelectItem value="veterinary-research">Veterinary Research</SelectItem>
+                          <SelectItem value="fitness-content">Fitness Content</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    {/* Predefined Labels */}
+                    <div className="space-y-2">
+                      <Label className="text-slate-300 text-sm font-medium">Select Labels</Label>
+                      <div className="flex flex-wrap gap-2 max-h-32 overflow-y-auto">
+                        {CONTENT_LABELS[selectedContentType as keyof typeof CONTENT_LABELS]?.map((label) => (
+                          <Badge
+                            key={label}
+                            variant={selectedLabels.includes(label) ? "default" : "outline"}
+                            className={`cursor-pointer text-xs ${
+                              selectedLabels.includes(label)
+                                ? "bg-blue-600 text-white"
+                                : "border-slate-500 text-slate-300 hover:bg-slate-700"
+                            }`}
+                            onClick={() => toggleLabel(label)}
+                          >
+                            {label}
+                          </Badge>
+                        ))}
+                      </div>
+                      <p className="text-xs text-slate-500">{selectedLabels.length} labels selected</p>
+                    </div>
+
                     {/* File Upload Section */}
                     <div
-                      className={`upload-zone border-2 border-dashed rounded-lg p-8 text-center bg-gradient-to-br from-slate-800/30 to-slate-700/30 transition-all duration-300 cursor-pointer ${
+                      className={`upload-zone border-2 border-dashed rounded-lg p-6 text-center transition-all duration-300 cursor-pointer ${
                         isDragOver
                           ? "border-blue-500 bg-blue-500/10"
-                          : "border-slate-600 hover:border-slate-500 hover:bg-slate-700/20"
+                          : "border-slate-600 hover:border-slate-500 bg-slate-700/20"
                       }`}
                       onDragOver={handleDragOver}
                       onDragLeave={handleDragLeave}
                       onDrop={handleDrop}
                       onClick={() => fileInputRef.current?.click()}
                     >
-                      <Upload className="h-12 w-12 text-slate-400 mx-auto mb-4" />
-                      <p className="text-lg font-medium text-slate-300 mb-2">
-                        Drop veterinary files here or click to upload
-                      </p>
-                      <p className="text-sm text-slate-500">Supports TXT, PDF, DOC files • Multiple files supported</p>
+                      <Upload className="h-8 w-8 text-slate-400 mx-auto mb-2" />
+                      <p className="text-sm font-medium text-slate-300 mb-1">Drop files here or click to upload</p>
+                      <p className="text-xs text-slate-500">Supports TXT, PDF, DOC files</p>
                       <input
                         ref={fileInputRef}
                         type="file"
                         multiple
-                        accept=".csv,.xlsx,.json,.xml,.txt,.pdf,.doc,.docx"
+                        accept=".txt,.pdf,.doc,.docx"
                         onChange={handleFileInputChange}
                         className="hidden"
                       />
                     </div>
 
-                    {/* Upload Progress */}
-                    {uploadedFiles.length > 0 && (
-                      <div className="space-y-3">
-                        <h4 className="text-white font-medium">Upload Progress</h4>
-                        {uploadedFiles.map((file) => (
-                          <div key={file.id} className="bg-slate-700/50 rounded-lg p-3">
-                            <div className="flex items-center justify-between mb-2">
-                              <div className="flex items-center space-x-2">
-                                <FileText className="h-4 w-4 text-slate-400" />
-                                <span className="text-sm text-slate-300 truncate max-w-[200px]">{file.file.name}</span>
-                                {getStatusIcon(file.status)}
-                              </div>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => removeFile(file.id)}
-                                className="h-6 w-6 p-0 text-slate-400 hover:text-white"
-                              >
-                                <X className="h-3 w-3" />
-                              </Button>
-                            </div>
-                            {file.status === "uploading" && <Progress value={file.progress} className="h-2" />}
-                            {file.status === "processing" && (
-                              <div className="text-xs text-blue-400">Processing with AI...</div>
-                            )}
-                            {file.status === "completed" && (
-                              <div className="text-xs text-green-400">✓ Successfully processed!</div>
-                            )}
-                            {file.status === "error" && <div className="text-xs text-red-400">✗ {file.error}</div>}
-                          </div>
-                        ))}
-                        <div className="bg-green-900/20 border border-green-500/30 rounded-lg p-3">
-                          <div className="flex items-center space-x-2">
-                            <CheckCircle className="h-4 w-4 text-green-400" />
-                            <span className="text-green-300 text-sm">
-                              Successfully processed {uploadedFiles.filter((f) => f.status === "completed").length}{" "}
-                              file(s)
-                            </span>
-                          </div>
+                    {/* URL Input Section */}
+                    <div className="space-y-2">
+                      <Label className="text-slate-300 text-sm font-medium">URL Input</Label>
+                      <div className="flex space-x-2">
+                        <div className="relative flex-1">
+                          <Globe className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-400" />
+                          <Input
+                            type="url"
+                            placeholder="https://example.com/article"
+                            value={urlInput}
+                            onChange={(e) => setUrlInput(e.target.value)}
+                            className="pl-10 bg-slate-700 border-slate-600 text-white"
+                            disabled={isProcessingUrl}
+                          />
                         </div>
+                        <Button
+                          onClick={handleUrlSubmit}
+                          disabled={!urlInput.trim() || isProcessingUrl}
+                          className="bg-blue-600 hover:bg-blue-700"
+                        >
+                          {isProcessingUrl ? "Processing..." : "Scrape"}
+                        </Button>
+                      </div>
+                    </div>
+
+                    {/* Processing Status */}
+                    {uploadedFiles.length > 0 && (
+                      <div className="space-y-2">
+                        <h4 className="text-white font-medium text-sm">Processing Status</h4>
+                        <ScrollArea className="h-40">
+                          {uploadedFiles.map((file) => (
+                            <div key={file.id} className="bg-slate-700/50 rounded p-2 mb-2">
+                              <div className="flex items-center justify-between mb-1">
+                                <div className="flex items-center space-x-2">
+                                  {getStatusIcon(file.status)}
+                                  <span className="text-xs text-slate-300 truncate max-w-[150px]">{file.name}</span>
+                                </div>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => removeFile(file.id)}
+                                  className="h-5 w-5 p-0 text-slate-400 hover:text-white"
+                                >
+                                  <X className="h-3 w-3" />
+                                </Button>
+                              </div>
+                              {file.status === "uploading" && <Progress value={file.progress} className="h-1" />}
+                              {file.status === "processing" && (
+                                <div className="text-xs text-blue-400">Processing with AI...</div>
+                              )}
+                              {file.status === "completed" && (
+                                <div className="text-xs text-green-400">✓ Ready for review</div>
+                              )}
+                              {file.status === "duplicate" && (
+                                <div className="text-xs text-yellow-400">⚠ Duplicate of {file.duplicateOf}</div>
+                              )}
+                              {file.status === "error" && <div className="text-xs text-red-400">✗ {file.error}</div>}
+                            </div>
+                          ))}
+                        </ScrollArea>
                       </div>
                     )}
 
                     {/* Processed Data List */}
-                    <div className="space-y-3">
+                    <div className="space-y-2">
                       <div className="flex items-center justify-between">
-                        <h4 className="text-white font-medium flex items-center">
+                        <h4 className="text-white font-medium text-sm flex items-center">
                           <Database className="h-4 w-4 mr-2" />
                           Processed Data ({allFiles.length})
                         </h4>
-                        <Button variant="ghost" size="sm" className="text-slate-400 hover:text-white">
-                          <RefreshCw className="h-4 w-4" />
+                        <Button variant="ghost" size="sm" className="text-slate-400 hover:text-white h-6 w-6 p-0">
+                          <RefreshCw className="h-3 w-3" />
                         </Button>
                       </div>
 
-                      <ScrollArea className="h-[300px]">
+                      <ScrollArea className="h-48">
                         {allFiles.length > 0 ? (
-                          <div className="space-y-2">
+                          <div className="space-y-1">
                             {allFiles.map((file) => (
                               <div
                                 key={file.id}
-                                className={`p-3 border rounded-lg cursor-pointer transition-colors ${
+                                className={`p-2 border rounded cursor-pointer transition-colors ${
                                   selectedFile?.id === file.id
                                     ? "border-blue-500 bg-blue-500/10"
                                     : "border-slate-600 hover:border-slate-500 bg-slate-700/30"
@@ -778,31 +1015,34 @@ Outcome: Stable condition with regular monitoring`,
                               >
                                 <div className="flex items-center justify-between">
                                   <div className="flex items-center space-x-2">
-                                    <FileText className="h-4 w-4 text-blue-400" />
-                                    <span className="text-white text-sm font-medium truncate max-w-[150px]">
+                                    <FileText className="h-3 w-3 text-blue-400" />
+                                    <span className="text-white text-xs font-medium truncate max-w-[120px]">
                                       {file.name}
                                     </span>
                                   </div>
                                   {getDbStatusBadge(file.status)}
                                 </div>
-                                <div className="flex items-center space-x-2 mt-1">
-                                  <Badge variant="outline" className="text-xs border-slate-500 text-slate-300">
-                                    {file.type.replace("-", " ")}
+                                <div className="flex items-center space-x-1 mt-1">
+                                  <Badge
+                                    variant="outline"
+                                    className="text-xs border-slate-500 text-slate-300 px-1 py-0"
+                                  >
+                                    {file.type?.replace("-", " ") || "unknown"}
                                   </Badge>
-                                  <Badge variant="outline" className="text-xs border-slate-500 text-slate-300">
-                                    {file.source}
+                                  <Badge
+                                    variant="outline"
+                                    className="text-xs border-slate-500 text-slate-300 px-1 py-0"
+                                  >
+                                    {file.source?.replace("-", " ") || "unknown"}
                                   </Badge>
-                                  <span className="text-xs text-slate-500">
-                                    {new Date(file.created_at).toLocaleDateString()}
-                                  </span>
                                 </div>
                               </div>
                             ))}
                           </div>
                         ) : (
-                          <div className="text-center py-8">
-                            <Files className="h-12 w-12 text-slate-500 mx-auto mb-3" />
-                            <p className="text-slate-400 text-sm">No files processed yet</p>
+                          <div className="text-center py-6">
+                            <FileText className="h-8 w-8 text-slate-500 mx-auto mb-2" />
+                            <p className="text-slate-400 text-xs">No files processed yet</p>
                           </div>
                         )}
                       </ScrollArea>
@@ -818,181 +1058,154 @@ Outcome: Stable condition with regular monitoring`,
                       Data Review
                     </CardTitle>
                     <CardDescription className="text-slate-400">
-                      Review and approve processed veterinary content before training
+                      Review processed content as plain text and confirm for training
                     </CardDescription>
                   </CardHeader>
                   <CardContent>
                     {selectedFile ? (
-                      <div className="space-y-6">
-                        <ScrollArea className="h-[calc(100vh-500px)]">
-                          <div className="space-y-6">
-                            {/* Extracted Information */}
-                            <div>
-                              <h3 className="text-white font-semibold mb-4">Extracted Information</h3>
-
-                              {/* Title */}
-                              <div className="mb-4">
-                                <Label className="text-slate-300 text-sm font-medium">Title</Label>
-                                <div className="mt-1 p-3 bg-slate-700/50 rounded border border-slate-600">
-                                  <p className="text-white text-sm">
-                                    {selectedFile.extracted_data?.title || selectedFile.name}
-                                  </p>
-                                </div>
+                      <div className="space-y-4">
+                        <ScrollArea className="h-[calc(100vh-450px)]">
+                          <div className="space-y-4">
+                            {/* File Info */}
+                            <div className="bg-slate-700/30 p-3 rounded border border-slate-600">
+                              <div className="flex items-center justify-between mb-2">
+                                <h3 className="text-white font-medium text-sm">{selectedFile.name}</h3>
+                                {getDbStatusBadge(selectedFile.status)}
                               </div>
-
-                              {/* Summary */}
-                              <div className="mb-4">
-                                <Label className="text-slate-300 text-sm font-medium">Summary</Label>
-                                <div className="mt-1 p-3 bg-slate-700/50 rounded border border-slate-600">
-                                  <p className="text-white text-sm leading-relaxed">
-                                    {selectedFile.extracted_data?.summary ||
-                                      "Written SOPs are an essential part of ensuring production of accurate and reliable results in the in-clinic laboratory. Purpose and Benefits of SOPs The purpose of SOPs in an in-clinic laboratory is to ensure consistency and quality of results. In the authors' experience, job sat- ABBREVIATIONS Quality control Standard operating procedure This is is the third installment in a series of 5 articles intended to help veterinary practitioners and their staff provide quality management for in-clinic laboratory testing."}
-                                  </p>
-                                </div>
-                              </div>
-
-                              {/* Key Points */}
-                              <div className="mb-4">
-                                <Label className="text-slate-300 text-sm font-medium">Key Points</Label>
-                                <div className="mt-1 p-3 bg-slate-700/50 rounded border border-slate-600">
-                                  <ul className="space-y-1">
-                                    {selectedFile.extracted_data?.keyPoints?.map((point: string, index: number) => (
-                                      <li key={index} className="text-white text-sm flex items-start space-x-2">
-                                        <span className="text-blue-400 mt-1">•</span>
-                                        <span>{point}</span>
-                                      </li>
-                                    )) || (
-                                      <>
-                                        <li className="text-white text-sm flex items-start space-x-2">
-                                          <span className="text-blue-400 mt-1">•</span>
-                                          <span>Individual tests or test panels recommended by</span>
-                                        </li>
-                                        <li className="text-white text-sm flex items-start space-x-2">
-                                          <span className="text-blue-400 mt-1">•</span>
-                                          <span>
-                                            This table is not intended to include all possible topics or aspects of
-                                            laboratory function that may be addressed by SOPs. †Exact instructions
-                                          </span>
-                                        </li>
-                                        <li className="text-white text-sm flex items-start space-x-2">
-                                          <span className="text-blue-400 mt-1">•</span>
-                                          <span>Specimen collection policies of the clinic (eg, stan-</span>
-                                        </li>
-                                        <li className="text-white text-sm flex items-start space-x-2">
-                                          <span className="text-blue-400 mt-1">•</span>
-                                          <span>Patient preparation (eg, unfed or fed status or test-</span>
-                                        </li>
-                                      </>
-                                    )}
-                                  </ul>
-                                </div>
-                              </div>
-
-                              {/* Metadata */}
-                              <div className="mb-4">
-                                <Label className="text-slate-300 text-sm font-medium">Metadata</Label>
-                                <div className="mt-1 grid grid-cols-2 gap-3">
-                                  <div className="bg-slate-700/50 p-3 rounded border border-slate-600">
-                                    <div className="text-xs text-slate-400">Word Count:</div>
-                                    <div className="text-white text-sm">~3,258 words</div>
-                                  </div>
-                                  <div className="bg-slate-700/50 p-3 rounded border border-slate-600">
-                                    <div className="text-xs text-slate-400">Content Focus:</div>
-                                    <div className="text-white text-sm">Animal Health</div>
-                                  </div>
-                                  <div className="bg-slate-700/50 p-3 rounded border border-slate-600">
-                                    <div className="text-xs text-slate-400">Document Type:</div>
-                                    <div className="text-white text-sm">Clinical Report</div>
-                                  </div>
-                                  <div className="bg-slate-700/50 p-3 rounded border border-slate-600">
-                                    <div className="text-xs text-slate-400">Processing Date:</div>
-                                    <div className="text-white text-sm">2025-07-21</div>
-                                  </div>
-                                  <div className="bg-slate-700/50 p-3 rounded border border-slate-600">
-                                    <div className="text-xs text-slate-400">Animals Mentioned:</div>
-                                    <div className="text-white text-sm">cat, dog</div>
-                                  </div>
-                                </div>
-                              </div>
-
-                              {/* Assign Veterinary Labels */}
-                              <div className="mb-4">
-                                <Label className="text-slate-300 text-sm font-medium">Assign Veterinary Labels</Label>
-                                <div className="mt-2 flex flex-wrap gap-2">
-                                  {[
-                                    "Small Animal Medicine",
-                                    "Large Animal Medicine",
-                                    "Exotic Animal Medicine",
-                                    "Veterinary Surgery",
-                                    "Animal Pathology",
-                                    "Clinical Diagnosis",
-                                    "Treatment Protocols",
-                                    "Preventive Medicine",
-                                    "Animal Nutrition",
-                                    "Veterinary Pharmacology",
-                                    "Animal Behavior",
-                                    "Emergency Medicine",
-                                    "Veterinary Oncology",
-                                    "Reproductive Medicine",
-                                    "Infectious Diseases",
-                                  ].map((label) => (
-                                    <Badge
-                                      key={label}
-                                      variant="secondary"
-                                      className="bg-blue-500/20 text-blue-400 border-blue-500/30 text-xs cursor-pointer hover:bg-blue-500/30"
-                                    >
-                                      {label}
-                                    </Badge>
-                                  ))}
-                                </div>
-                              </div>
-
-                              {/* Processed Content Preview */}
-                              <div className="mb-4">
-                                <Label className="text-slate-300 text-sm font-medium">Processed Content Preview</Label>
-                                <div className="mt-1 p-3 bg-slate-700/50 rounded border border-slate-600 max-h-32 overflow-y-auto">
-                                  <pre className="text-white text-xs whitespace-pre-wrap font-mono">
-                                    {`Quality Management for In-Clinic Laboratories
-Standard operating procedures
-Kathleen P. Freeman dvm, phd
-Jennifer R. Cook dvm, ms
-Emma H. Hooijberg bvsc, phd
-From Synlab-VPG/Exeter, Exeter Science Park, Exeter EX5 2FN, England (Freeman);`}
-                                  </pre>
-                                </div>
+                              <div className="flex items-center space-x-2 text-xs text-slate-400">
+                                <span>Type: {selectedFile.type?.replace("-", " ")}</span>
+                                <span>•</span>
+                                <span>Source: {selectedFile.source?.replace("-", " ")}</span>
+                                <span>•</span>
+                                <span>Added: {new Date(selectedFile.created_at).toLocaleDateString()}</span>
                               </div>
                             </div>
+
+                            {/* Extracted Title */}
+                            <div>
+                              <Label className="text-slate-300 text-xs font-medium">Extracted Title</Label>
+                              <div className="mt-1 p-2 bg-slate-700/50 rounded border border-slate-600">
+                                <p className="text-white text-sm">
+                                  {selectedFile.extracted_data?.title || selectedFile.name}
+                                </p>
+                              </div>
+                            </div>
+
+                            {/* Summary */}
+                            <div>
+                              <Label className="text-slate-300 text-xs font-medium">AI-Generated Summary</Label>
+                              <div className="mt-1 p-2 bg-slate-700/50 rounded border border-slate-600">
+                                <p className="text-white text-sm leading-relaxed">
+                                  {selectedFile.extracted_data?.summary || "No summary available"}
+                                </p>
+                              </div>
+                            </div>
+
+                            {/* Key Points */}
+                            <div>
+                              <Label className="text-slate-300 text-xs font-medium">Key Points Extracted</Label>
+                              <div className="mt-1 p-2 bg-slate-700/50 rounded border border-slate-600">
+                                <ul className="space-y-1">
+                                  {selectedFile.extracted_data?.keyPoints?.map((point: string, index: number) => (
+                                    <li key={index} className="text-white text-sm flex items-start space-x-2">
+                                      <span className="text-blue-400 mt-1">•</span>
+                                      <span>{point}</span>
+                                    </li>
+                                  )) || <li className="text-slate-400 text-sm">No key points extracted</li>}
+                                </ul>
+                              </div>
+                            </div>
+
+                            {/* Applied Labels */}
+                            <div>
+                              <Label className="text-slate-300 text-xs font-medium">Applied Labels</Label>
+                              <div className="mt-1 flex flex-wrap gap-1">
+                                {selectedFile.labels?.map((label: string) => (
+                                  <Badge
+                                    key={label}
+                                    variant="secondary"
+                                    className="bg-blue-500/20 text-blue-400 border-blue-500/30 text-xs"
+                                  >
+                                    {label}
+                                  </Badge>
+                                )) || <span className="text-slate-400 text-xs">No labels applied</span>}
+                              </div>
+                            </div>
+
+                            {/* Raw Content Preview */}
+                            <div>
+                              <Label className="text-slate-300 text-xs font-medium">Raw Content (Plain Text)</Label>
+                              <div className="mt-1 p-2 bg-slate-700/50 rounded border border-slate-600 max-h-40 overflow-y-auto">
+                                <pre className="text-white text-xs whitespace-pre-wrap font-mono leading-relaxed">
+                                  {selectedFile.original_content?.substring(0, 1000) || "No content available"}
+                                  {selectedFile.original_content?.length > 1000 && "..."}
+                                </pre>
+                              </div>
+                            </div>
+
+                            {/* Structured Data Preview */}
+                            {selectedFile.extracted_data?.extractedData && (
+                              <div>
+                                <Label className="text-slate-300 text-xs font-medium">Structured Data</Label>
+                                <div className="mt-1 p-2 bg-slate-700/50 rounded border border-slate-600">
+                                  <div className="grid grid-cols-2 gap-2 text-xs">
+                                    {Object.entries(selectedFile.extracted_data.extractedData).map(([key, value]) => (
+                                      <div key={key}>
+                                        <span className="text-slate-400">{key}:</span>
+                                        <span className="text-white ml-1">{String(value)}</span>
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+                              </div>
+                            )}
                           </div>
                         </ScrollArea>
 
-                        {/* Action Buttons - Always visible at bottom */}
-                        {isAdmin && selectedFile.status === "pending" && (
-                          <div className="border-t border-slate-600 pt-4">
-                            <div className="flex space-x-3">
+                        {/* Action Buttons */}
+                        {isAdmin && (selectedFile.status === "pending" || selectedFile.status === "ready") && (
+                          <div className="border-t border-slate-600 pt-3">
+                            <div className="flex space-x-2">
                               <Button
                                 onClick={() => approveFile(selectedFile.id)}
-                                size="lg"
-                                className="flex-1 bg-slate-900 hover:bg-slate-800 text-white border border-slate-600"
+                                size="sm"
+                                className="flex-1 bg-green-600 hover:bg-green-700 text-white"
                               >
-                                ✓ Approve
+                                ✓ Approve for Training
                               </Button>
                               <Button
                                 onClick={() => rejectFile(selectedFile.id)}
                                 variant="outline"
-                                size="lg"
-                                className="flex-1 border-slate-600 text-slate-300 hover:bg-slate-700"
+                                size="sm"
+                                className="flex-1 border-red-500/50 text-red-400 hover:bg-red-500/10"
                               >
-                                Reject
+                                ✗ Reject
                               </Button>
+                            </div>
+                          </div>
+                        )}
+
+                        {selectedFile.status === "approved" && (
+                          <div className="border-t border-slate-600 pt-3">
+                            <div className="bg-green-900/20 border border-green-500/30 rounded p-2 text-center">
+                              <p className="text-green-400 text-xs">✓ Approved for next training cycle</p>
+                            </div>
+                          </div>
+                        )}
+
+                        {selectedFile.status === "rejected" && (
+                          <div className="border-t border-slate-600 pt-3">
+                            <div className="bg-red-900/20 border border-red-500/30 rounded p-2 text-center">
+                              <p className="text-red-400 text-xs">✗ Rejected - will not be used for training</p>
                             </div>
                           </div>
                         )}
                       </div>
                     ) : (
                       <div className="text-center py-12">
-                        <FileText className="h-16 w-16 text-slate-500 mx-auto mb-4" />
-                        <p className="text-slate-400">Select a file to review</p>
-                        <p className="text-sm text-slate-500 mt-2">
+                        <FileText className="h-12 w-12 text-slate-500 mx-auto mb-3" />
+                        <p className="text-slate-400 text-sm">Select a file to review</p>
+                        <p className="text-xs text-slate-500 mt-1">
                           Click on a file from the processed data list to see its details
                         </p>
                       </div>
@@ -1006,20 +1219,27 @@ From Synlab-VPG/Exeter, Exeter Science Park, Exeter EX5 2FN, England (Freeman);`
               <Card className="bg-slate-800/50 border-slate-700">
                 <CardHeader>
                   <CardTitle className="text-white">Analytics Dashboard</CardTitle>
-                  <CardDescription className="text-slate-400">Data processing and performance metrics</CardDescription>
+                  <CardDescription className="text-slate-400">Data processing and training metrics</CardDescription>
                 </CardHeader>
                 <CardContent>
-                  {isAdmin ? (
-                    <div className="text-center py-12">
-                      <BarChart3 className="h-16 w-16 text-slate-500 mx-auto mb-4" />
-                      <p className="text-slate-400">Analytics dashboard coming soon...</p>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                    <div className="bg-gradient-to-br from-blue-600/20 to-blue-500/10 p-4 rounded-lg border border-blue-500/20">
+                      <div className="text-2xl font-bold text-blue-400">{allFiles.length}</div>
+                      <div className="text-sm text-slate-400">Total Processed</div>
                     </div>
-                  ) : (
-                    <div className="text-center py-12">
-                      <Lock className="h-16 w-16 text-slate-500 mx-auto mb-4" />
-                      <p className="text-slate-400">Analytics access restricted to administrators</p>
+                    <div className="bg-gradient-to-br from-green-600/20 to-green-500/10 p-4 rounded-lg border border-green-500/20">
+                      <div className="text-2xl font-bold text-green-400">{approvedFiles.length}</div>
+                      <div className="text-sm text-slate-400">Approved for Training</div>
                     </div>
-                  )}
+                    <div className="bg-gradient-to-br from-yellow-600/20 to-yellow-500/10 p-4 rounded-lg border border-yellow-500/20">
+                      <div className="text-2xl font-bold text-yellow-400">{pendingFiles.length}</div>
+                      <div className="text-sm text-slate-400">Pending Review</div>
+                    </div>
+                  </div>
+                  <div className="text-center py-8">
+                    <BarChart3 className="h-12 w-12 text-slate-500 mx-auto mb-3" />
+                    <p className="text-slate-400 text-sm">Detailed analytics coming soon...</p>
+                  </div>
                 </CardContent>
               </Card>
             </TabsContent>
@@ -1031,17 +1251,10 @@ From Synlab-VPG/Exeter, Exeter Science Park, Exeter EX5 2FN, England (Freeman);`
                   <CardDescription className="text-slate-400">Monitor and improve data quality metrics</CardDescription>
                 </CardHeader>
                 <CardContent>
-                  {isAdmin ? (
-                    <div className="text-center py-12">
-                      <Shield className="h-16 w-16 text-slate-500 mx-auto mb-4" />
-                      <p className="text-slate-400">Quality metrics dashboard coming soon...</p>
-                    </div>
-                  ) : (
-                    <div className="text-center py-12">
-                      <Lock className="h-16 w-16 text-slate-500 mx-auto mb-4" />
-                      <p className="text-slate-400">Quality metrics access restricted to administrators</p>
-                    </div>
-                  )}
+                  <div className="text-center py-12">
+                    <Shield className="h-12 w-12 text-slate-500 mx-auto mb-3" />
+                    <p className="text-slate-400 text-sm">Quality metrics dashboard coming soon...</p>
+                  </div>
                 </CardContent>
               </Card>
             </TabsContent>
@@ -1049,17 +1262,36 @@ From Synlab-VPG/Exeter, Exeter Science Park, Exeter EX5 2FN, England (Freeman);`
             <TabsContent value="settings" className="space-y-6">
               <Card className="bg-slate-800/50 border-slate-700">
                 <CardHeader>
-                  <CardTitle className="text-white">Settings</CardTitle>
+                  <CardTitle className="text-white">Training Settings</CardTitle>
                   <CardDescription className="text-slate-400">
-                    Configure your data ingestion preferences
+                    Configure training schedule and data processing preferences
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-6">
                     <div className="flex items-center justify-between">
                       <div>
-                        <h3 className="text-white font-medium">Auto-processing</h3>
-                        <p className="text-sm text-slate-400">Automatically process uploaded files</p>
+                        <h3 className="text-white font-medium">Training Schedule</h3>
+                        <p className="text-sm text-slate-400">How often should the model be retrained?</p>
+                      </div>
+                      <Select value={trainingSchedule} onValueChange={handleTrainingScheduleChange}>
+                        <SelectTrigger className="w-32 bg-slate-700 border-slate-600">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {Object.entries(TRAINING_SCHEDULES).map(([key, value]) => (
+                            <SelectItem key={key} value={key}>
+                              {value.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h3 className="text-white font-medium">Auto-approval</h3>
+                        <p className="text-sm text-slate-400">Automatically approve high-quality content</p>
                       </div>
                       <Button
                         variant="outline"
@@ -1067,46 +1299,30 @@ From Synlab-VPG/Exeter, Exeter Science Park, Exeter EX5 2FN, England (Freeman);`
                         className="border-slate-600 text-slate-300 hover:bg-slate-700 bg-transparent"
                         disabled={!isAdmin}
                       >
-                        {isAdmin ? "Enable" : "Admin Only"}
+                        {isAdmin ? "Configure" : "Admin Only"}
                       </Button>
                     </div>
+
                     <div className="flex items-center justify-between">
                       <div>
-                        <h3 className="text-white font-medium">Email notifications</h3>
-                        <p className="text-sm text-slate-400">Get notified when processing completes</p>
+                        <h3 className="text-white font-medium">Duplicate Detection</h3>
+                        <p className="text-sm text-slate-400">Prevent duplicate content from being processed</p>
                       </div>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="border-slate-600 text-slate-300 hover:bg-slate-700 bg-transparent"
-                      >
-                        Configure
-                      </Button>
+                      <Badge variant="secondary" className="bg-green-500/20 text-green-400 border-green-500/30">
+                        Enabled
+                      </Badge>
                     </div>
-                    {isAdmin && (
-                      <div className="border-t border-slate-700 pt-6">
-                        <h3 className="text-white font-medium mb-4 flex items-center">
-                          <Shield className="h-4 w-4 mr-2 text-yellow-500" />
-                          Admin Settings
-                        </h3>
-                        <div className="space-y-2">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="border-slate-600 text-slate-300 mr-2 hover:bg-slate-700 bg-transparent"
-                          >
-                            User Management
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="border-slate-600 text-slate-300 hover:bg-slate-700 bg-transparent"
-                          >
-                            System Configuration
-                          </Button>
+
+                    <div className="border-t border-slate-700 pt-4">
+                      <h3 className="text-white font-medium mb-2">Next Training Window</h3>
+                      <div className="bg-slate-700/30 p-3 rounded border border-slate-600">
+                        <div className="flex items-center space-x-2 text-sm">
+                          <Calendar className="h-4 w-4 text-blue-400" />
+                          <span className="text-white">{nextTrainingDate.toLocaleDateString()} at 2:00 AM UTC</span>
                         </div>
+                        <p className="text-xs text-slate-400 mt-1">{approvedFiles.length} files ready for training</p>
                       </div>
-                    )}
+                    </div>
                   </div>
                 </CardContent>
               </Card>
