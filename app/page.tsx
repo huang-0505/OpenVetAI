@@ -18,6 +18,7 @@ import {
   CheckCircle,
   AlertCircle,
   Lock,
+  RefreshCw,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -647,17 +648,10 @@ Outcome: Stable condition with regular monitoring`,
           </div>
 
           <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-            <TabsList className="grid w-full grid-cols-5 bg-slate-800/50 border border-slate-700">
+            <TabsList className="grid w-full grid-cols-4 bg-slate-800/50 border border-slate-700">
               <TabsTrigger value="upload" className="data-[state=active]:bg-blue-600 data-[state=active]:text-white">
                 <Upload className="h-4 w-4 mr-2" />
                 Upload
-              </TabsTrigger>
-              <TabsTrigger value="files" className="data-[state=active]:bg-blue-600 data-[state=active]:text-white">
-                <Files className="h-4 w-4 mr-2" />
-                Files{" "}
-                {pendingFiles.length > 0 && (
-                  <Badge className="ml-2 bg-yellow-500 text-black text-xs px-1 py-0">{pendingFiles.length}</Badge>
-                )}
               </TabsTrigger>
               <TabsTrigger value="analytics" className="data-[state=active]:bg-blue-600 data-[state=active]:text-white">
                 <BarChart3 className="h-4 w-4 mr-2" />
@@ -674,21 +668,20 @@ Outcome: Stable condition with regular monitoring`,
             </TabsList>
 
             <TabsContent value="upload" className="space-y-6">
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                {/* File Upload Section */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 h-[calc(100vh-300px)]">
+                {/* Left Panel - Data Input */}
                 <Card className="bg-slate-800/50 border-slate-700">
                   <CardHeader>
                     <CardTitle className="text-white flex items-center">
                       <Upload className="h-5 w-5 mr-2 text-blue-500" />
-                      File Upload
+                      Data Input
                     </CardTitle>
                     <CardDescription className="text-slate-400">
-                      {isAdmin
-                        ? "Upload your data files for processing and analysis"
-                        : "Upload files for admin review and approval"}
+                      Upload veterinary files or provide URLs to scrape and process content
                     </CardDescription>
                   </CardHeader>
-                  <CardContent>
+                  <CardContent className="space-y-6">
+                    {/* File Upload Section */}
                     <div
                       className={`upload-zone border-2 border-dashed rounded-lg p-8 text-center bg-gradient-to-br from-slate-800/30 to-slate-700/30 transition-all duration-300 cursor-pointer ${
                         isDragOver
@@ -702,13 +695,9 @@ Outcome: Stable condition with regular monitoring`,
                     >
                       <Upload className="h-12 w-12 text-slate-400 mx-auto mb-4" />
                       <p className="text-lg font-medium text-slate-300 mb-2">
-                        {isDragOver ? "Drop files here" : "Click to upload or drag and drop"}
+                        Drop veterinary files here or click to upload
                       </p>
-                      <p className="text-sm text-slate-500">
-                        Supports CSV, Excel, JSON, XML, and Text files up to 100MB
-                      </p>
-                      {!isAdmin && <p className="text-xs text-yellow-400 mt-2">Files will be pending admin approval</p>}
-                      <Button className="mt-4 bg-blue-600 hover:bg-blue-700 text-white">Choose Files</Button>
+                      <p className="text-sm text-slate-500">Supports TXT, PDF, DOC files • Multiple files supported</p>
                       <input
                         ref={fileInputRef}
                         type="file"
@@ -721,7 +710,7 @@ Outcome: Stable condition with regular monitoring`,
 
                     {/* Upload Progress */}
                     {uploadedFiles.length > 0 && (
-                      <div className="mt-6 space-y-3">
+                      <div className="space-y-3">
                         <h4 className="text-white font-medium">Upload Progress</h4>
                         {uploadedFiles.map((file) => (
                           <div key={file.id} className="bg-slate-700/50 rounded-lg p-3">
@@ -742,170 +731,82 @@ Outcome: Stable condition with regular monitoring`,
                             </div>
                             {file.status === "uploading" && <Progress value={file.progress} className="h-2" />}
                             {file.status === "processing" && (
-                              <div className="text-xs text-blue-400">Processing with AI (simulation)...</div>
+                              <div className="text-xs text-blue-400">Processing with AI...</div>
                             )}
                             {file.status === "completed" && (
-                              <div className="text-xs text-green-400">
-                                ✓ {isAdmin ? "Processed successfully" : "Uploaded - pending approval"}
-                              </div>
+                              <div className="text-xs text-green-400">✓ Successfully processed!</div>
                             )}
                             {file.status === "error" && <div className="text-xs text-red-400">✗ {file.error}</div>}
                           </div>
                         ))}
+                        <div className="bg-green-900/20 border border-green-500/30 rounded-lg p-3">
+                          <div className="flex items-center space-x-2">
+                            <CheckCircle className="h-4 w-4 text-green-400" />
+                            <span className="text-green-300 text-sm">
+                              Successfully processed {uploadedFiles.filter((f) => f.status === "completed").length}{" "}
+                              file(s)
+                            </span>
+                          </div>
+                        </div>
                       </div>
                     )}
-                  </CardContent>
-                </Card>
 
-                {/* Quick Stats */}
-                <Card className="bg-slate-800/50 border-slate-700">
-                  <CardHeader>
-                    <CardTitle className="text-white flex items-center">
-                      <BarChart3 className="h-5 w-5 mr-2 text-green-500" />
-                      Quick Stats
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="bg-gradient-to-br from-blue-600/20 to-blue-500/10 p-4 rounded-lg border border-blue-500/20 text-center">
-                        <div className="text-2xl font-bold text-blue-400">{allFiles.length}</div>
-                        <div className="text-sm text-slate-400">Total Files</div>
+                    {/* Processed Data List */}
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between">
+                        <h4 className="text-white font-medium flex items-center">
+                          <Database className="h-4 w-4 mr-2" />
+                          Processed Data ({allFiles.length})
+                        </h4>
+                        <Button variant="ghost" size="sm" className="text-slate-400 hover:text-white">
+                          <RefreshCw className="h-4 w-4" />
+                        </Button>
                       </div>
-                      <div className="bg-gradient-to-br from-green-600/20 to-green-500/10 p-4 rounded-lg border border-green-500/20 text-center">
-                        <div className="text-2xl font-bold text-green-400">
-                          {allFiles.filter((f) => f.status === "approved" || f.status === "ready").length}
-                        </div>
-                        <div className="text-sm text-slate-400">Approved</div>
-                      </div>
-                      <div className="bg-gradient-to-br from-yellow-600/20 to-yellow-500/10 p-4 rounded-lg border border-yellow-500/20 text-center">
-                        <div className="text-2xl font-bold text-yellow-400">
-                          {allFiles.filter((f) => f.status === "pending").length +
-                            uploadedFiles.filter((f) => f.status === "processing").length}
-                        </div>
-                        <div className="text-sm text-slate-400">Pending</div>
-                      </div>
-                      <div className="bg-gradient-to-br from-red-600/20 to-red-500/10 p-4 rounded-lg border border-red-500/20 text-center">
-                        <div className="text-2xl font-bold text-red-400">
-                          {allFiles.filter((f) => f.status === "rejected").length +
-                            uploadedFiles.filter((f) => f.status === "error").length}
-                        </div>
-                        <div className="text-sm text-slate-400">Rejected/Failed</div>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
 
-              {/* Database Connection */}
-              <Card className="bg-slate-800/50 border-slate-700">
-                <CardHeader className="flex flex-row items-center justify-between">
-                  <div>
-                    <CardTitle className="text-white flex items-center">
-                      <Database className="h-5 w-5 mr-2 text-blue-500" />
-                      Database Connection
-                    </CardTitle>
-                    <CardDescription className="text-slate-400">
-                      Supabase database connection status and statistics
-                    </CardDescription>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <div className="h-2 w-2 bg-green-500 rounded-full animate-pulse"></div>
-                    <Badge variant="secondary" className="bg-green-500/20 text-green-400 border-green-500/30">
-                      Connected
-                    </Badge>
-                    <Badge variant="outline" className="border-green-500 text-green-400">
-                      Online
-                    </Badge>
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                    <div className="bg-gradient-to-br from-blue-600/20 to-blue-500/10 p-4 rounded-lg border border-blue-500/20 text-center">
-                      <div className="text-2xl font-bold text-blue-400">{dbFiles.length}</div>
-                      <div className="text-sm text-slate-400">DB Records</div>
-                    </div>
-                    <div className="bg-gradient-to-br from-green-600/20 to-green-500/10 p-4 rounded-lg border border-green-500/20 text-center">
-                      <div className="text-2xl font-bold text-green-400">
-                        {dbFiles.filter((f) => f.status === "approved" || f.status === "ready").length}
-                      </div>
-                      <div className="text-sm text-slate-400">Approved</div>
-                    </div>
-                    <div className="bg-gradient-to-br from-yellow-600/20 to-yellow-500/10 p-4 rounded-lg border border-yellow-500/20 text-center">
-                      <div className="text-2xl font-bold text-yellow-400">{pendingFiles.length}</div>
-                      <div className="text-sm text-slate-400">Pending</div>
-                    </div>
-                    <div className="bg-gradient-to-br from-red-600/20 to-red-500/10 p-4 rounded-lg border border-red-500/20 text-center">
-                      <div className="text-2xl font-bold text-red-400">
-                        {dbFiles.filter((f) => f.status === "rejected").length}
-                      </div>
-                      <div className="text-sm text-slate-400">Rejected</div>
-                    </div>
-                  </div>
-                  <div className="mt-4 text-center">
-                    <p className="text-sm text-slate-500">Last updated: {new Date().toLocaleString()}</p>
-                  </div>
-                </CardContent>
-              </Card>
-            </TabsContent>
-
-            <TabsContent value="files" className="space-y-6">
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 h-[calc(100vh-300px)]">
-                {/* Left Panel - File List (No Upload) */}
-                <Card className="bg-slate-800/50 border-slate-700">
-                  <CardHeader>
-                    <CardTitle className="text-white flex items-center">
-                      <Files className="h-5 w-5 mr-2 text-blue-500" />
-                      Uploaded Files
-                    </CardTitle>
-                    <CardDescription className="text-slate-400">
-                      Select a file to review and approve processed content
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <ScrollArea className="h-[calc(100vh-450px)]">
-                      {allFiles.length > 0 ? (
-                        <div className="space-y-2">
-                          {allFiles.map((file) => (
-                            <div
-                              key={file.id}
-                              className={`p-3 border rounded-lg cursor-pointer transition-colors ${
-                                selectedFile?.id === file.id
-                                  ? "border-blue-500 bg-blue-500/10"
-                                  : "border-slate-600 hover:border-slate-500 bg-slate-700/30"
-                              }`}
-                              onClick={() => setSelectedFile(file)}
-                            >
-                              <div className="flex items-center justify-between">
-                                <div className="flex items-center space-x-2">
-                                  <FileText className="h-4 w-4 text-blue-400" />
-                                  <span className="text-white text-sm font-medium truncate max-w-[200px]">
-                                    {file.name}
+                      <ScrollArea className="h-[300px]">
+                        {allFiles.length > 0 ? (
+                          <div className="space-y-2">
+                            {allFiles.map((file) => (
+                              <div
+                                key={file.id}
+                                className={`p-3 border rounded-lg cursor-pointer transition-colors ${
+                                  selectedFile?.id === file.id
+                                    ? "border-blue-500 bg-blue-500/10"
+                                    : "border-slate-600 hover:border-slate-500 bg-slate-700/30"
+                                }`}
+                                onClick={() => setSelectedFile(file)}
+                              >
+                                <div className="flex items-center justify-between">
+                                  <div className="flex items-center space-x-2">
+                                    <FileText className="h-4 w-4 text-blue-400" />
+                                    <span className="text-white text-sm font-medium truncate max-w-[150px]">
+                                      {file.name}
+                                    </span>
+                                  </div>
+                                  {getDbStatusBadge(file.status)}
+                                </div>
+                                <div className="flex items-center space-x-2 mt-1">
+                                  <Badge variant="outline" className="text-xs border-slate-500 text-slate-300">
+                                    {file.type.replace("-", " ")}
+                                  </Badge>
+                                  <Badge variant="outline" className="text-xs border-slate-500 text-slate-300">
+                                    {file.source}
+                                  </Badge>
+                                  <span className="text-xs text-slate-500">
+                                    {new Date(file.created_at).toLocaleDateString()}
                                   </span>
                                 </div>
-                                {getDbStatusBadge(file.status)}
                               </div>
-                              <div className="flex items-center space-x-2 mt-1">
-                                <Badge variant="outline" className="text-xs border-slate-500 text-slate-300">
-                                  {file.type.replace("-", " ")}
-                                </Badge>
-                                <Badge variant="outline" className="text-xs border-slate-500 text-slate-300">
-                                  {file.source}
-                                </Badge>
-                                <span className="text-xs text-slate-500">
-                                  {new Date(file.created_at).toLocaleDateString()}
-                                </span>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      ) : (
-                        <div className="text-center py-8">
-                          <Files className="h-12 w-12 text-slate-500 mx-auto mb-3" />
-                          <p className="text-slate-400 text-sm">No files uploaded yet</p>
-                          <p className="text-slate-500 text-xs mt-1">Go to Upload tab to upload files</p>
-                        </div>
-                      )}
-                    </ScrollArea>
+                            ))}
+                          </div>
+                        ) : (
+                          <div className="text-center py-8">
+                            <Files className="h-12 w-12 text-slate-500 mx-auto mb-3" />
+                            <p className="text-slate-400 text-sm">No files processed yet</p>
+                          </div>
+                        )}
+                      </ScrollArea>
+                    </div>
                   </CardContent>
                 </Card>
 
@@ -917,21 +818,20 @@ Outcome: Stable condition with regular monitoring`,
                       Data Review
                     </CardTitle>
                     <CardDescription className="text-slate-400">
-                      Review and approve processed content before training
+                      Review and approve processed veterinary content before training
                     </CardDescription>
                   </CardHeader>
                   <CardContent>
                     {selectedFile ? (
-                      <>
-                        {/* Scrollable extracted information */}
-                        <ScrollArea className="h-[calc(100vh-450px)]">
+                      <div className="space-y-6">
+                        <ScrollArea className="h-[calc(100vh-500px)]">
                           <div className="space-y-6">
                             {/* Extracted Information */}
-                            <div className="space-y-4">
-                              <h3 className="text-white font-semibold">Extracted Information</h3>
+                            <div>
+                              <h3 className="text-white font-semibold mb-4">Extracted Information</h3>
 
                               {/* Title */}
-                              <div>
+                              <div className="mb-4">
                                 <Label className="text-slate-300 text-sm font-medium">Title</Label>
                                 <div className="mt-1 p-3 bg-slate-700/50 rounded border border-slate-600">
                                   <p className="text-white text-sm">
@@ -941,18 +841,18 @@ Outcome: Stable condition with regular monitoring`,
                               </div>
 
                               {/* Summary */}
-                              <div>
+                              <div className="mb-4">
                                 <Label className="text-slate-300 text-sm font-medium">Summary</Label>
                                 <div className="mt-1 p-3 bg-slate-700/50 rounded border border-slate-600">
                                   <p className="text-white text-sm leading-relaxed">
                                     {selectedFile.extracted_data?.summary ||
-                                      "This medical journal article presents research findings on clinical outcomes and treatment efficacy."}
+                                      "Written SOPs are an essential part of ensuring production of accurate and reliable results in the in-clinic laboratory. Purpose and Benefits of SOPs The purpose of SOPs in an in-clinic laboratory is to ensure consistency and quality of results. In the authors' experience, job sat- ABBREVIATIONS Quality control Standard operating procedure This is is the third installment in a series of 5 articles intended to help veterinary practitioners and their staff provide quality management for in-clinic laboratory testing."}
                                   </p>
                                 </div>
                               </div>
 
                               {/* Key Points */}
-                              <div>
+                              <div className="mb-4">
                                 <Label className="text-slate-300 text-sm font-medium">Key Points</Label>
                                 <div className="mt-1 p-3 bg-slate-700/50 rounded border border-slate-600">
                                   <ul className="space-y-1">
@@ -965,19 +865,22 @@ Outcome: Stable condition with regular monitoring`,
                                       <>
                                         <li className="text-white text-sm flex items-start space-x-2">
                                           <span className="text-blue-400 mt-1">•</span>
-                                          <span>Study methodology and patient demographics</span>
+                                          <span>Individual tests or test panels recommended by</span>
                                         </li>
                                         <li className="text-white text-sm flex items-start space-x-2">
                                           <span className="text-blue-400 mt-1">•</span>
-                                          <span>Primary and secondary endpoints</span>
+                                          <span>
+                                            This table is not intended to include all possible topics or aspects of
+                                            laboratory function that may be addressed by SOPs. †Exact instructions
+                                          </span>
                                         </li>
                                         <li className="text-white text-sm flex items-start space-x-2">
                                           <span className="text-blue-400 mt-1">•</span>
-                                          <span>Statistical analysis and results</span>
+                                          <span>Specimen collection policies of the clinic (eg, stan-</span>
                                         </li>
                                         <li className="text-white text-sm flex items-start space-x-2">
                                           <span className="text-blue-400 mt-1">•</span>
-                                          <span>Clinical implications and recommendations</span>
+                                          <span>Patient preparation (eg, unfed or fed status or test-</span>
                                         </li>
                                       </>
                                     )}
@@ -986,57 +889,52 @@ Outcome: Stable condition with regular monitoring`,
                               </div>
 
                               {/* Metadata */}
-                              <div>
+                              <div className="mb-4">
                                 <Label className="text-slate-300 text-sm font-medium">Metadata</Label>
                                 <div className="mt-1 grid grid-cols-2 gap-3">
                                   <div className="bg-slate-700/50 p-3 rounded border border-slate-600">
-                                    <div className="text-xs text-slate-400 uppercase tracking-wide">Study Type:</div>
-                                    <div className="text-white text-sm mt-1">
-                                      {selectedFile.extracted_data?.metadata?.studyType || "Clinical Trial"}
-                                    </div>
+                                    <div className="text-xs text-slate-400">Word Count:</div>
+                                    <div className="text-white text-sm">~3,258 words</div>
                                   </div>
                                   <div className="bg-slate-700/50 p-3 rounded border border-slate-600">
-                                    <div className="text-xs text-slate-400 uppercase tracking-wide">Sample Size:</div>
-                                    <div className="text-white text-sm mt-1">
-                                      {selectedFile.extracted_data?.metadata?.sampleSize || "N=245"}
-                                    </div>
+                                    <div className="text-xs text-slate-400">Content Focus:</div>
+                                    <div className="text-white text-sm">Animal Health</div>
                                   </div>
                                   <div className="bg-slate-700/50 p-3 rounded border border-slate-600">
-                                    <div className="text-xs text-slate-400 uppercase tracking-wide">Duration:</div>
-                                    <div className="text-white text-sm mt-1">
-                                      {selectedFile.extracted_data?.metadata?.duration || "12 months"}
-                                    </div>
+                                    <div className="text-xs text-slate-400">Document Type:</div>
+                                    <div className="text-white text-sm">Clinical Report</div>
                                   </div>
                                   <div className="bg-slate-700/50 p-3 rounded border border-slate-600">
-                                    <div className="text-xs text-slate-400 uppercase tracking-wide">
-                                      Primary Endpoint:
-                                    </div>
-                                    <div className="text-white text-sm mt-1">
-                                      {selectedFile.extracted_data?.metadata?.primaryEndpoint || "Treatment efficacy"}
-                                    </div>
+                                    <div className="text-xs text-slate-400">Processing Date:</div>
+                                    <div className="text-white text-sm">2025-07-21</div>
+                                  </div>
+                                  <div className="bg-slate-700/50 p-3 rounded border border-slate-600">
+                                    <div className="text-xs text-slate-400">Animals Mentioned:</div>
+                                    <div className="text-white text-sm">cat, dog</div>
                                   </div>
                                 </div>
                               </div>
 
-                              {/* Assign Labels */}
-                              <div>
-                                <Label className="text-slate-300 text-sm font-medium">Assign Labels</Label>
+                              {/* Assign Veterinary Labels */}
+                              <div className="mb-4">
+                                <Label className="text-slate-300 text-sm font-medium">Assign Veterinary Labels</Label>
                                 <div className="mt-2 flex flex-wrap gap-2">
                                   {[
-                                    "Medical Research",
-                                    "Clinical Trial",
-                                    "Nutrition",
-                                    "Fitness",
-                                    "Mental Health",
-                                    "Cardiology",
-                                    "Oncology",
-                                    "Pediatrics",
-                                    "Geriatrics",
-                                    "Pharmacology",
-                                    "Diet Plans",
-                                    "Exercise Routines",
-                                    "Wellness Tips",
-                                    "Health News",
+                                    "Small Animal Medicine",
+                                    "Large Animal Medicine",
+                                    "Exotic Animal Medicine",
+                                    "Veterinary Surgery",
+                                    "Animal Pathology",
+                                    "Clinical Diagnosis",
+                                    "Treatment Protocols",
+                                    "Preventive Medicine",
+                                    "Animal Nutrition",
+                                    "Veterinary Pharmacology",
+                                    "Animal Behavior",
+                                    "Emergency Medicine",
+                                    "Veterinary Oncology",
+                                    "Reproductive Medicine",
+                                    "Infectious Diseases",
                                   ].map((label) => (
                                     <Badge
                                       key={label}
@@ -1050,13 +948,16 @@ Outcome: Stable condition with regular monitoring`,
                               </div>
 
                               {/* Processed Content Preview */}
-                              <div>
+                              <div className="mb-4">
                                 <Label className="text-slate-300 text-sm font-medium">Processed Content Preview</Label>
                                 <div className="mt-1 p-3 bg-slate-700/50 rounded border border-slate-600 max-h-32 overflow-y-auto">
                                   <pre className="text-white text-xs whitespace-pre-wrap font-mono">
-                                    {selectedFile.original_content?.substring(0, 500) ||
-                                      "Contributors\nAcknowledgements\n1. Review of Cardiovascular and Respiratory Physiology\nThe Cardiovascular System\nRespiratory Physiology\n2. The Preanesthetic Workup"}
-                                    ...
+                                    {`Quality Management for In-Clinic Laboratories
+Standard operating procedures
+Kathleen P. Freeman dvm, phd
+Jennifer R. Cook dvm, ms
+Emma H. Hooijberg bvsc, phd
+From Synlab-VPG/Exeter, Exeter Science Park, Exeter EX5 2FN, England (Freeman);`}
                                   </pre>
                                 </div>
                               </div>
@@ -1064,35 +965,35 @@ Outcome: Stable condition with regular monitoring`,
                           </div>
                         </ScrollArea>
 
-                        {/* Action buttons – only for admins on pending files */}
+                        {/* Action Buttons - Always visible at bottom */}
                         {isAdmin && selectedFile.status === "pending" && (
-                          <div className="sticky bottom-0 bg-slate-800/90 backdrop-blur-sm border-t border-slate-600 p-4 -mx-6 -mb-6">
+                          <div className="border-t border-slate-600 pt-4">
                             <div className="flex space-x-3">
-                              <Button
-                                onClick={() => rejectFile(selectedFile.id)}
-                                variant="destructive"
-                                size="lg"
-                                className="flex-1 bg-red-600 hover:bg-red-700 text-white"
-                              >
-                                ❌ Reject File
-                              </Button>
                               <Button
                                 onClick={() => approveFile(selectedFile.id)}
                                 size="lg"
-                                className="flex-1 bg-green-600 hover:bg-green-700 text-white"
+                                className="flex-1 bg-slate-900 hover:bg-slate-800 text-white border border-slate-600"
                               >
-                                ✅ Approve File
+                                ✓ Approve
+                              </Button>
+                              <Button
+                                onClick={() => rejectFile(selectedFile.id)}
+                                variant="outline"
+                                size="lg"
+                                className="flex-1 border-slate-600 text-slate-300 hover:bg-slate-700"
+                              >
+                                Reject
                               </Button>
                             </div>
                           </div>
                         )}
-                      </>
+                      </div>
                     ) : (
                       <div className="text-center py-12">
                         <FileText className="h-16 w-16 text-slate-500 mx-auto mb-4" />
                         <p className="text-slate-400">Select a file to review</p>
                         <p className="text-sm text-slate-500 mt-2">
-                          Click on a file from the left panel to see its details
+                          Click on a file from the processed data list to see its details
                         </p>
                       </div>
                     )}
