@@ -1,220 +1,564 @@
 "use client"
 
-import { useState } from "react"
-import { Upload, Files, BarChart3, Shield, Settings, Database } from "lucide-react"
+import type React from "react"
+import { useState, useEffect, useCallback } from "react"
+import { useDropzone } from "react-dropzone"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Textarea } from "@/components/ui/textarea"
+import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { useToast } from "@/components/ui/use-toast"
 import { Badge } from "@/components/ui/badge"
-import { UserButton, useUser } from "@clerk/nextjs"
-import { DataViewer } from "@/components/data-viewer"
-import { DatabaseStatus } from "@/components/database-status"
-import { DataQualityMetrics } from "@/components/data-quality-metrics"
-import { useMounted } from "@/hooks/use-mounted"
+import { ScrollArea } from "@/components/ui/scroll-area"
+import { Calendar } from "@/components/ui/calendar"
+import { cn } from "@/lib/utils"
+import { format } from "date-fns"
+import { CalendarIcon } from "lucide-react"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 
-export default function DataIngestionPortalClient() {
-  const mounted = useMounted()
-  const { user } = useUser()
-  const [activeTab, setActiveTab] = useState("upload")
+// Define the FileMetadata type
+interface FileMetadata {
+  id: string
+  filename: string
+  size: number
+  uploadDate: string
+  status: "pending" | "ready" | "approved" | "rejected"
+  metadata: {
+    title: string
+    description: string
+    author: string
+    source: string
+    keyPoints: string[]
+    tags: string[]
+    category: string
+    trainingDate: Date | null
+    retentionPolicy: string
+    securityClassification: string
+    dataOwner: string
+  }
+}
 
-  if (!mounted) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-500"></div>
-      </div>
-    )
+const DataIngestionPortalClient = () => {
+  const [files, setFiles] = useState<File[]>([])
+  const [fileMetadatas, setFileMetadatas] = useState<FileMetadata[]>([])
+  const [selectedFile, setSelectedFile] = useState<FileMetadata | null>(null)
+  const [isAdmin, setIsAdmin] = useState<boolean>(false) // Mock admin status
+  const [isProcessing, setIsProcessing] = useState<boolean>(false)
+  const [metadataForm, setMetadataForm] = useState({
+    title: "",
+    description: "",
+    author: "",
+    source: "",
+    keyPoints: [""],
+    tags: [""],
+    category: "",
+    trainingDate: null,
+    retentionPolicy: "",
+    securityClassification: "",
+    dataOwner: "",
+  })
+  const { toast } = useToast()
+
+  // Mock API calls (replace with actual API endpoints)
+  const fetchFiles = async () => {
+    // Simulate fetching file metadata from an API
+    const mockData: FileMetadata[] = [
+      {
+        id: "1",
+        filename: "document1.pdf",
+        size: 1024,
+        uploadDate: "2024-01-01",
+        status: "pending",
+        metadata: {
+          title: "Initial Document",
+          description: "A test document for initial setup.",
+          author: "John Doe",
+          source: "Internal",
+          keyPoints: ["Setup", "Testing"],
+          tags: ["test", "initial"],
+          category: "Documentation",
+          trainingDate: new Date(),
+          retentionPolicy: "3 years",
+          securityClassification: "Confidential",
+          dataOwner: "Data Team",
+        },
+      },
+      {
+        id: "2",
+        filename: "report2.docx",
+        size: 2048,
+        uploadDate: "2024-01-05",
+        status: "ready",
+        metadata: {
+          title: "Monthly Report",
+          description: "Financial report for January.",
+          author: "Jane Smith",
+          source: "Finance Dept",
+          keyPoints: ["Financials", "Analysis"],
+          tags: ["report", "finance"],
+          category: "Reports",
+          trainingDate: new Date(),
+          retentionPolicy: "5 years",
+          securityClassification: "Restricted",
+          dataOwner: "Finance Team",
+        },
+      },
+      {
+        id: "3",
+        filename: "presentation3.pptx",
+        size: 1536,
+        uploadDate: "2024-01-10",
+        status: "approved",
+        metadata: {
+          title: "Sales Presentation",
+          description: "Presentation for the sales team.",
+          author: "Mike Johnson",
+          source: "Sales Dept",
+          keyPoints: ["Sales", "Marketing"],
+          tags: ["presentation", "sales"],
+          category: "Presentations",
+          trainingDate: new Date(),
+          retentionPolicy: "2 years",
+          securityClassification: "Public",
+          dataOwner: "Sales Team",
+        },
+      },
+      {
+        id: "4",
+        filename: "notes4.txt",
+        size: 512,
+        uploadDate: "2024-01-15",
+        status: "rejected",
+        metadata: {
+          title: "Meeting Notes",
+          description: "Notes from the team meeting.",
+          author: "Emily White",
+          source: "Team Meeting",
+          keyPoints: ["Meeting", "Notes"],
+          tags: ["notes", "team"],
+          category: "Notes",
+          trainingDate: new Date(),
+          retentionPolicy: "1 year",
+          securityClassification: "Internal",
+          dataOwner: "Project Team",
+        },
+      },
+    ]
+
+    setFileMetadatas(mockData)
   }
 
-  const isAdmin = user?.emailAddresses[0]?.emailAddress === process.env.NEXT_PUBLIC_ADMIN_EMAIL
+  useEffect(() => {
+    // Simulate fetching files and admin status on component mount
+    fetchFiles()
+    // Simulate checking admin status (e.g., from user context)
+    setIsAdmin(true)
+  }, [])
+
+  const onDrop = useCallback((acceptedFiles: File[]) => {
+    setFiles((prevFiles) => [...prevFiles, ...acceptedFiles])
+    // Reset metadata form on new file upload
+    setMetadataForm({
+      title: "",
+      description: "",
+      author: "",
+      source: "",
+      keyPoints: [""],
+      tags: [""],
+      category: "",
+      trainingDate: null,
+      retentionPolicy: "",
+      securityClassification: "",
+      dataOwner: "",
+    })
+  }, [])
+
+  const { getRootProps, getInputProps, isDragActive } = useDropzone({ onDrop })
+
+  const handleFileSelect = (fileId: string) => {
+    const selected = fileMetadatas.find((file) => file.id === fileId)
+    setSelectedFile(selected || null)
+    if (selected) {
+      setMetadataForm(selected.metadata)
+    }
+  }
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
+    const { name, value } = e.target
+    setMetadataForm((prev) => ({ ...prev, [name]: value }))
+  }
+
+  const handleKeyPointChange = (index: number, value: string) => {
+    const newKeyPoints = [...metadataForm.keyPoints]
+    newKeyPoints[index] = value
+    setMetadataForm((prev) => ({ ...prev, keyPoints: newKeyPoints }))
+  }
+
+  const handleAddKeyPoint = () => {
+    setMetadataForm((prev) => ({ ...prev, keyPoints: [...prev.keyPoints, ""] }))
+  }
+
+  const handleRemoveKeyPoint = (index: number) => {
+    const newKeyPoints = [...metadataForm.keyPoints]
+    newKeyPoints.splice(index, 1)
+    setMetadataForm((prev) => ({ ...prev, keyPoints: newKeyPoints }))
+  }
+
+  const handleTagChange = (index: number, value: string) => {
+    const newTags = [...metadataForm.tags]
+    newTags[index] = value
+    setMetadataForm((prev) => ({ ...prev, tags: newTags }))
+  }
+
+  const handleAddTag = () => {
+    setMetadataForm((prev) => ({ ...prev, tags: [...prev.tags, ""] }))
+  }
+
+  const handleRemoveTag = (index: number) => {
+    const newTags = [...metadataForm.tags]
+    newTags.splice(index, 1)
+    setMetadataForm((prev) => ({ ...prev, tags: newTags }))
+  }
+
+  const handleTrainingDateChange = (date: Date | undefined) => {
+    setMetadataForm((prev) => ({ ...prev, trainingDate: date }))
+  }
+
+  const handleSubmitMetadata = () => {
+    // Simulate submitting metadata to an API
+    console.log("Submitting metadata:", metadataForm)
+    toast({
+      title: "Metadata Submitted",
+      description: "Your metadata has been successfully submitted.",
+    })
+  }
+
+  const handleApproveFile = async (fileId: string) => {
+    setIsProcessing(true)
+    // Simulate API call to approve the file
+    await new Promise((resolve) => setTimeout(resolve, 1000)) // Simulate delay
+    setFileMetadatas((prev) => prev.map((file) => (file.id === fileId ? { ...file, status: "approved" } : file)))
+    setSelectedFile((prev) => (prev && prev.id === fileId ? { ...prev, status: "approved" } : prev))
+    setIsProcessing(false)
+    toast({
+      title: "File Approved",
+      description: "The file has been successfully approved.",
+    })
+  }
+
+  const handleRejectFile = async (fileId: string) => {
+    setIsProcessing(true)
+    // Simulate API call to reject the file
+    await new Promise((resolve) => setTimeout(resolve, 1000)) // Simulate delay
+    setFileMetadatas((prev) => prev.map((file) => (file.id === fileId ? { ...file, status: "rejected" } : file)))
+    setSelectedFile((prev) => (prev && prev.id === fileId ? { ...prev, status: "rejected" } : prev))
+    setIsProcessing(false)
+    toast({
+      title: "File Rejected",
+      description: "The file has been successfully rejected.",
+    })
+  }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
-      {/* Header */}
-      <header className="border-b border-slate-700 bg-slate-900/50 backdrop-blur-sm">
-        <div className="container mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-3">
-              <Database className="h-8 w-8 text-blue-500" />
-              <h1 className="text-2xl font-bold text-white">Data Ingestion Portal</h1>
-              <Badge variant="outline" className="border-green-500 text-green-400">
-                Online
-              </Badge>
+    <div className="container mx-auto p-4">
+      <h1 className="text-2xl font-bold mb-4">Data Ingestion Portal</h1>
+
+      {/* File Upload Section */}
+      <div {...getRootProps()} className="border-2 border-dashed rounded-md p-4 mb-4 cursor-pointer">
+        <input {...getInputProps()} />
+        {isDragActive ? (
+          <p className="text-center">Drop the files here ...</p>
+        ) : (
+          <p className="text-center">Drag 'n' drop some files here, or click to select files</p>
+        )}
+      </div>
+
+      {/* File List Section */}
+      <div className="mb-4">
+        <h2 className="text-lg font-semibold mb-2">Uploaded Files</h2>
+        {files.length > 0 ? (
+          <ul>
+            {files.map((file, index) => (
+              <li key={index} className="mb-1">
+                {file.name} - {file.size} bytes
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p>No files uploaded yet.</p>
+        )}
+      </div>
+
+      {/* Data Table Section */}
+      <div className="mb-4">
+        <h2 className="text-lg font-semibold mb-2">File Metadata</h2>
+        <ScrollArea>
+          <Table>
+            <TableCaption>A list of your recent files.</TableCaption>
+            <TableHeader>
+              <TableRow>
+                <TableHead className="w-[100px]">File Name</TableHead>
+                <TableHead>Upload Date</TableHead>
+                <TableHead>Size</TableHead>
+                <TableHead>Status</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {fileMetadatas.map((file) => (
+                <TableRow
+                  key={file.id}
+                  onClick={() => handleFileSelect(file.id)}
+                  className="cursor-pointer hover:bg-gray-100"
+                >
+                  <TableCell className="font-medium">{file.filename}</TableCell>
+                  <TableCell>{file.uploadDate}</TableCell>
+                  <TableCell>{file.size}</TableCell>
+                  <TableCell>
+                    {file.status === "pending" && <Badge variant="secondary">Pending</Badge>}
+                    {file.status === "ready" && <Badge className="bg-blue-100 text-blue-800">Ready</Badge>}
+                    {file.status === "approved" && <Badge className="bg-green-100 text-green-800">Approved</Badge>}
+                    {file.status === "rejected" && <Badge variant="destructive">Rejected</Badge>}
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </ScrollArea>
+      </div>
+
+      {/* Data Review Section */}
+      {selectedFile && (
+        <div>
+          <h2 className="text-lg font-semibold mb-2">Reviewing: {selectedFile.filename}</h2>
+
+          {/* Metadata Form */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+            <div>
+              <Label htmlFor="title">Title</Label>
+              <Input type="text" id="title" name="title" value={metadataForm.title} onChange={handleInputChange} />
             </div>
-            <div className="flex items-center space-x-4">
-              <div className="flex items-center space-x-2 text-sm text-slate-300">
-                <div className="h-2 w-2 bg-green-500 rounded-full animate-pulse"></div>
-                <span>Connected</span>
-              </div>
-              <UserButton
-                appearance={{
-                  elements: {
-                    avatarBox: "h-10 w-10",
-                    userButtonPopoverCard: "bg-slate-800 border-slate-700",
-                    userButtonPopoverActionButton: "text-slate-200 hover:bg-slate-700",
-                  },
-                }}
+            <div>
+              <Label htmlFor="author">Author</Label>
+              <Input type="text" id="author" name="author" value={metadataForm.author} onChange={handleInputChange} />
+            </div>
+            <div>
+              <Label htmlFor="source">Source</Label>
+              <Input type="text" id="source" name="source" value={metadataForm.source} onChange={handleInputChange} />
+            </div>
+            <div>
+              <Label htmlFor="category">Category</Label>
+              <Input
+                type="text"
+                id="category"
+                name="category"
+                value={metadataForm.category}
+                onChange={handleInputChange}
               />
             </div>
-          </div>
-        </div>
-      </header>
-
-      {/* Main Content */}
-      <main className="container mx-auto px-4 py-8">
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-5 bg-slate-800/50 border border-slate-700">
-            <TabsTrigger value="upload" className="data-[state=active]:bg-blue-600 data-[state=active]:text-white">
-              <Upload className="h-4 w-4 mr-2" />
-              Upload
-            </TabsTrigger>
-            <TabsTrigger value="files" className="data-[state=active]:bg-blue-600 data-[state=active]:text-white">
-              <Files className="h-4 w-4 mr-2" />
-              Files
-            </TabsTrigger>
-            <TabsTrigger value="analytics" className="data-[state=active]:bg-blue-600 data-[state=active]:text-white">
-              <BarChart3 className="h-4 w-4 mr-2" />
-              Analytics
-            </TabsTrigger>
-            <TabsTrigger value="quality" className="data-[state=active]:bg-blue-600 data-[state=active]:text-white">
-              <Shield className="h-4 w-4 mr-2" />
-              Quality
-            </TabsTrigger>
-            <TabsTrigger value="settings" className="data-[state=active]:bg-blue-600 data-[state=active]:text-white">
-              <Settings className="h-4 w-4 mr-2" />
-              Settings
-            </TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="upload" className="space-y-6">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {/* File Upload Section */}
-              <Card className="bg-slate-800/50 border-slate-700">
-                <CardHeader>
-                  <CardTitle className="text-white flex items-center">
-                    <Upload className="h-5 w-5 mr-2 text-blue-500" />
-                    File Upload
-                  </CardTitle>
-                  <CardDescription className="text-slate-400">
-                    Upload your data files for processing and analysis
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="border-2 border-dashed border-slate-600 rounded-lg p-8 text-center bg-gradient-to-br from-slate-800/30 to-slate-700/30 hover:from-slate-700/40 hover:to-slate-600/40 transition-all duration-300">
-                    <Upload className="h-12 w-12 text-slate-400 mx-auto mb-4" />
-                    <p className="text-lg font-medium text-slate-300 mb-2">Click to upload or drag and drop</p>
-                    <p className="text-sm text-slate-500">Supports CSV, Excel, JSON, XML, and Text files up to 100MB</p>
-                    <Button className="mt-4 bg-blue-600 hover:bg-blue-700 text-white">Choose Files</Button>
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* Quick Stats */}
-              <Card className="bg-slate-800/50 border-slate-700">
-                <CardHeader>
-                  <CardTitle className="text-white flex items-center">
-                    <BarChart3 className="h-5 w-5 mr-2 text-green-500" />
-                    Quick Stats
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="bg-gradient-to-br from-blue-600/20 to-blue-500/10 p-4 rounded-lg border border-blue-500/20">
-                      <div className="text-2xl font-bold text-blue-400">156</div>
-                      <div className="text-sm text-slate-400">Total Files</div>
-                    </div>
-                    <div className="bg-gradient-to-br from-green-600/20 to-green-500/10 p-4 rounded-lg border border-green-500/20">
-                      <div className="text-2xl font-bold text-green-400">142</div>
-                      <div className="text-sm text-slate-400">Processed</div>
-                    </div>
-                    <div className="bg-gradient-to-br from-red-600/20 to-red-500/10 p-4 rounded-lg border border-red-500/20">
-                      <div className="text-2xl font-bold text-red-400">8</div>
-                      <div className="text-sm text-slate-400">Failed</div>
-                    </div>
-                    <div className="bg-gradient-to-br from-yellow-600/20 to-yellow-500/10 p-4 rounded-lg border border-yellow-500/20">
-                      <div className="text-2xl font-bold text-yellow-400">6</div>
-                      <div className="text-sm text-slate-400">Queued</div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
+            <div>
+              <Label htmlFor="retentionPolicy">Retention Policy</Label>
+              <Input
+                type="text"
+                id="retentionPolicy"
+                name="retentionPolicy"
+                value={metadataForm.retentionPolicy}
+                onChange={handleInputChange}
+              />
             </div>
+            <div>
+              <Label htmlFor="securityClassification">Security Classification</Label>
+              <Input
+                type="text"
+                id="securityClassification"
+                name="securityClassification"
+                value={metadataForm.securityClassification}
+                onChange={handleInputChange}
+              />
+            </div>
+            <div>
+              <Label htmlFor="dataOwner">Data Owner</Label>
+              <Input
+                type="text"
+                id="dataOwner"
+                name="dataOwner"
+                value={metadataForm.dataOwner}
+                onChange={handleInputChange}
+              />
+            </div>
+            <div>
+              <Label htmlFor="trainingDate">Training Date</Label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant={"outline"}
+                    className={cn(
+                      "w-[280px] justify-start text-left font-normal",
+                      !metadataForm.trainingDate && "text-muted-foreground",
+                    )}
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {metadataForm.trainingDate ? format(metadataForm.trainingDate, "PPP") : <span>Pick a date</span>}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={metadataForm.trainingDate}
+                    onSelect={handleTrainingDateChange}
+                    disabled={(date) => date > new Date()}
+                    initialFocus
+                  />
+                </PopoverContent>
+              </Popover>
+            </div>
+          </div>
 
-            {/* Database Status */}
-            <DatabaseStatus />
-          </TabsContent>
+          <div>
+            <Label htmlFor="description">Description</Label>
+            <Textarea
+              id="description"
+              name="description"
+              value={metadataForm.description}
+              onChange={handleInputChange}
+              className="mb-4"
+            />
+          </div>
 
-          <TabsContent value="files">
-            <DataViewer />
-          </TabsContent>
+          <div>
+            <Label>Key Points</Label>
+            {metadataForm.keyPoints.map((keyPoint, index) => (
+              <div key={index} className="flex items-center mb-2">
+                <Input
+                  type="text"
+                  value={keyPoint}
+                  onChange={(e) => handleKeyPointChange(index, e.target.value)}
+                  className="mr-2"
+                />
+                <Button type="button" variant="destructive" size="icon" onClick={() => handleRemoveKeyPoint(index)}>
+                  ❌
+                </Button>
+              </div>
+            ))}
+            <Button type="button" onClick={handleAddKeyPoint}>
+              Add Key Point
+            </Button>
+          </div>
 
-          <TabsContent value="analytics">
-            <Card className="bg-slate-800/50 border-slate-700">
-              <CardHeader>
-                <CardTitle className="text-white">Analytics Dashboard</CardTitle>
-                <CardDescription className="text-slate-400">Data processing and performance metrics</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="text-center py-12">
-                  <BarChart3 className="h-16 w-16 text-slate-500 mx-auto mb-4" />
-                  <p className="text-slate-400">Analytics dashboard coming soon...</p>
+          <div className="mt-4">
+            <Label>Tags</Label>
+            {metadataForm.tags.map((tag, index) => (
+              <div key={index} className="flex items-center mb-2">
+                <Input
+                  type="text"
+                  value={tag}
+                  onChange={(e) => handleTagChange(index, e.target.value)}
+                  className="mr-2"
+                />
+                <Button type="button" variant="destructive" size="icon" onClick={() => handleRemoveTag(index)}>
+                  ❌
+                </Button>
+              </div>
+            ))}
+            <Button type="button" onClick={handleAddTag}>
+              Add Tag
+            </Button>
+          </div>
+
+          <Button onClick={handleSubmitMetadata} className="mt-4">
+            Submit Metadata
+          </Button>
+
+          {/* Action Buttons - Make them VERY obvious */}
+          {selectedFile && selectedFile.status === "pending" && isAdmin && (
+            <div className="mt-8 p-6 bg-yellow-50 border-2 border-yellow-200 rounded-lg">
+              <div className="text-center mb-4">
+                <h3 className="text-lg font-bold text-yellow-800 mb-2">⚠️ ADMIN ACTION REQUIRED</h3>
+                <p className="text-yellow-700">
+                  This file is pending approval. Review the content above and choose an action:
+                </p>
+              </div>
+
+              <div className="flex gap-4 justify-center">
+                <Button
+                  onClick={() => handleApproveFile(selectedFile.id)}
+                  disabled={isProcessing}
+                  size="lg"
+                  className="bg-green-600 hover:bg-green-700 text-white px-8 py-3 text-lg font-semibold min-w-[150px]"
+                >
+                  ✅ APPROVE
+                </Button>
+
+                <Button
+                  onClick={() => handleRejectFile(selectedFile.id)}
+                  disabled={isProcessing}
+                  variant="destructive"
+                  size="lg"
+                  className="px-8 py-3 text-lg font-semibold min-w-[150px]"
+                >
+                  ❌ REJECT
+                </Button>
+              </div>
+
+              {isProcessing && (
+                <div className="text-center mt-4">
+                  <p className="text-yellow-700">Processing your decision...</p>
                 </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
+              )}
+            </div>
+          )}
 
-          <TabsContent value="quality">
-            <DataQualityMetrics />
-          </TabsContent>
+          {selectedFile && selectedFile.status === "ready" && isAdmin && (
+            <div className="mt-8 p-6 bg-blue-50 border-2 border-blue-200 rounded-lg">
+              <div className="text-center mb-4">
+                <h3 className="text-lg font-bold text-blue-800 mb-2">📋 READY FOR REVIEW</h3>
+                <p className="text-blue-700">This file has been processed and is ready for your approval:</p>
+              </div>
 
-          <TabsContent value="settings">
-            <Card className="bg-slate-800/50 border-slate-700">
-              <CardHeader>
-                <CardTitle className="text-white">Settings</CardTitle>
-                <CardDescription className="text-slate-400">Configure your data ingestion preferences</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <h3 className="text-white font-medium">Auto-processing</h3>
-                      <p className="text-sm text-slate-400">Automatically process uploaded files</p>
-                    </div>
-                    <Button variant="outline" size="sm" className="border-slate-600 text-slate-300 bg-transparent">
-                      Enable
-                    </Button>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <h3 className="text-white font-medium">Email notifications</h3>
-                      <p className="text-sm text-slate-400">Get notified when processing completes</p>
-                    </div>
-                    <Button variant="outline" size="sm" className="border-slate-600 text-slate-300 bg-transparent">
-                      Configure
-                    </Button>
-                  </div>
-                  {isAdmin && (
-                    <div className="border-t border-slate-700 pt-4">
-                      <h3 className="text-white font-medium mb-2">Admin Settings</h3>
-                      <div className="space-y-2">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="border-slate-600 text-slate-300 mr-2 bg-transparent"
-                        >
-                          User Management
-                        </Button>
-                        <Button variant="outline" size="sm" className="border-slate-600 text-slate-300 bg-transparent">
-                          System Configuration
-                        </Button>
-                      </div>
-                    </div>
-                  )}
+              <div className="flex gap-4 justify-center">
+                <Button
+                  onClick={() => handleApproveFile(selectedFile.id)}
+                  disabled={isProcessing}
+                  size="lg"
+                  className="bg-green-600 hover:bg-green-700 text-white px-8 py-3 text-lg font-semibold min-w-[150px]"
+                >
+                  ✅ APPROVE
+                </Button>
+
+                <Button
+                  onClick={() => handleRejectFile(selectedFile.id)}
+                  disabled={isProcessing}
+                  variant="destructive"
+                  size="lg"
+                  className="px-8 py-3 text-lg font-semibold min-w-[150px]"
+                >
+                  ❌ REJECT
+                </Button>
+              </div>
+
+              {isProcessing && (
+                <div className="text-center mt-4">
+                  <p className="text-blue-700">Processing your decision...</p>
                 </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-        </Tabs>
-      </main>
+              )}
+            </div>
+          )}
+
+          {selectedFile && selectedFile.status === "approved" && (
+            <div className="mt-8 p-4 bg-green-50 border border-green-200 rounded-lg text-center">
+              <p className="text-green-700 font-medium">✅ This file has been approved and is ready for training</p>
+            </div>
+          )}
+
+          {selectedFile && selectedFile.status === "rejected" && (
+            <div className="mt-8 p-4 bg-red-50 border border-red-200 rounded-lg text-center">
+              <p className="text-red-700 font-medium">❌ This file has been rejected</p>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   )
 }
+
+export default DataIngestionPortalClient
