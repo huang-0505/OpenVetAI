@@ -44,6 +44,7 @@ export default function HomePage() {
   const { toast } = useToast()
   const [activeTab, setActiveTab] = useState("upload")
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([])
+  // Tracks whether a file is being dragged over the upload drop-zone
   const [isDragOver, setIsDragOver] = useState(false)
   const [dbFiles, setDbFiles] = useState<any[]>([])
   const [selectedFile, setSelectedFile] = useState<any>(null)
@@ -129,7 +130,7 @@ export default function HomePage() {
                 processed_content: JSON.stringify(processedData),
                 extracted_data: processedData,
                 labels: ["veterinary", "research"],
-                status: isAdmin ? "ready" : "pending", // Non-admin files get "pending" status
+                status: "pending", // All files start as pending, even admin uploads
                 user_id: user?.id || "anonymous",
                 uploaded_by: user?.emailAddresses[0]?.emailAddress || "anonymous",
               })
@@ -165,9 +166,7 @@ export default function HomePage() {
 
           toast({
             title: "File processed successfully",
-            description: isAdmin
-              ? `${uploadedFile.file.name} has been processed and is ready.`
-              : `${uploadedFile.file.name} has been uploaded and is pending admin approval.`,
+            description: `${uploadedFile.file.name} has been uploaded and is pending approval.`,
           })
         } catch (error) {
           console.error("Error processing file:", error)
@@ -1061,23 +1060,25 @@ Outcome: Stable condition with regular monitoring`,
                             </div>
                           </div>
 
-                          {/* Action Buttons */}
+                          {/* Action Buttons - Always show for pending files when admin */}
                           {isAdmin && selectedFile && selectedFile.status === "pending" && (
-                            <div className="flex space-x-3 pt-4 border-t border-slate-600">
-                              <Button
-                                onClick={() => rejectFile(selectedFile.id)}
-                                variant="outline"
-                                className="flex-1 border-red-500/50 text-red-400 hover:bg-red-500/10"
-                              >
-                                Reject
-                              </Button>
-                              <Button
-                                onClick={() => approveFile(selectedFile.id)}
-                                className="flex-1 bg-green-600 hover:bg-green-700 text-white"
-                              >
-                                <CheckCircle className="h-4 w-4 mr-2" />
-                                Approve
-                              </Button>
+                            <div className="mt-6 pt-4 border-t border-slate-600">
+                              <div className="flex space-x-3">
+                                <Button
+                                  onClick={() => rejectFile(selectedFile.id)}
+                                  variant="outline"
+                                  className="flex-1 border-red-500/50 text-red-400 hover:bg-red-500/10"
+                                >
+                                  Reject File
+                                </Button>
+                                <Button
+                                  onClick={() => approveFile(selectedFile.id)}
+                                  className="flex-1 bg-green-600 hover:bg-green-700 text-white"
+                                >
+                                  <CheckCircle className="h-4 w-4 mr-2" />
+                                  Approve File
+                                </Button>
+                              </div>
                             </div>
                           )}
                         </div>
