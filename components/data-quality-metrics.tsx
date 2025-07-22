@@ -87,6 +87,91 @@ export function DataQualityMetrics() {
     return Math.min(score, 100)
   }
 
+  // Add this near the top after the existing calculateQualityScore function
+  const analyzeDocumentQuality = (
+    doc: ProcessedData,
+  ): {
+    score: number
+    issues: string[]
+    strengths: string[]
+  } => {
+    const issues: string[] = []
+    const strengths: string[] = []
+    const score = calculateQualityScore(doc.original_content, doc.extracted_data, doc.labels)
+
+    // Content analysis
+    const contentLength = doc.original_content.length
+    if (contentLength < 500) {
+      issues.push("Very short content")
+    } else if (contentLength > 2000) {
+      strengths.push("Comprehensive content")
+    }
+
+    // Label analysis
+    if (doc.labels.length === 0) {
+      issues.push("No labels assigned")
+    } else if (doc.labels.length >= 3) {
+      strengths.push("Well-categorized with multiple labels")
+    }
+
+    // Extracted data quality
+    if (doc.extracted_data?.title && doc.extracted_data.title.length > 10) {
+      strengths.push("Clear title extracted")
+    } else {
+      issues.push("Unclear or missing title")
+    }
+
+    if (doc.extracted_data?.summary && doc.extracted_data.summary.length > 100) {
+      strengths.push("Detailed summary available")
+    } else {
+      issues.push("Limited or missing summary")
+    }
+
+    // Veterinary relevance check
+    const vetTerms = ["veterinary", "animal", "clinical", "diagnosis", "treatment", "care", "health"]
+    const hasVetContent = vetTerms.some(
+      (term) =>
+        doc.original_content.toLowerCase().includes(term) ||
+        doc.labels.some((label) => label.toLowerCase().includes(term)),
+    )
+
+    if (hasVetContent) {
+      strengths.push("Relevant to veterinary medicine")
+    } else {
+      issues.push("Limited veterinary relevance")
+    }
+
+    return { score, issues, strengths }
+  }
+
+  // Add this function after the existing calculateQualityScore function
+  const getQualityRecommendations = (metrics: QualityMetrics): string[] => {
+    const recommendations: string[] = []
+
+    if (metrics.documentsWithoutLabels > 0) {
+      recommendations.push(`Add labels to ${metrics.documentsWithoutLabels} unlabeled documents`)
+    }
+
+    if (metrics.contentQualityScores.poor > 0) {
+      recommendations.push(`Review and improve ${metrics.contentQualityScores.poor} low-quality documents`)
+    }
+
+    if (metrics.averageContentLength < 1000) {
+      recommendations.push("Upload more comprehensive documents with detailed content")
+    }
+
+    if (Object.keys(metrics.labelDistribution).length < 5) {
+      recommendations.push("Diversify document categories with more label variety")
+    }
+
+    const approvalRate = (metrics.totalDocuments - metrics.duplicateRisk) / metrics.totalDocuments
+    if (approvalRate < 0.8) {
+      recommendations.push("Increase document approval rate by improving content quality")
+    }
+
+    return recommendations
+  }
+
   const analyzeData = async () => {
     setIsLoading(true)
     try {
@@ -616,6 +701,28 @@ export function DataQualityMetrics() {
           </Card>
         </div>
       )}
+
+      {/* Quality Recommendations */}
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="flex items-center gap-2">
+            <Target className="h-5 w-5" />
+            Quality Recommendations
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {metrics && (
+            <div className="space-y-2">
+              {getQualityRecommendations(metrics).map((recommendation, index) => (
+                <div key={index} className="flex items-start gap-2 p-2 bg-blue-50 rounded-lg">
+                  <AlertCircle className="h-4 w-4 text-blue-600 mt-0.5 flex-shrink-0" />
+                  <p className="text-sm text-blue-800">{recommendation}</p>
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       {!metrics && !isLoading && (
         <Card>

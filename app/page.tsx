@@ -15,6 +15,9 @@ import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
 import { useToast } from "@/hooks/use-toast"
 import { supabase } from "@/lib/supabase"
+import { analyzeDocument, formatLabel, getVeterinaryLabels } from "@/lib/auto-labeling"
+import { customDuplicateCheck } from "@/lib/duplicate-detection"
+import { DataQualityMetrics } from "@/components/data-quality-metrics"
 
 interface ProcessingFile {
   id: string
@@ -38,6 +41,7 @@ interface DatabaseFile {
   uploaded_by?: string
   created_at: string
   updated_at: string
+  quality_score?: number
 }
 
 export default function DataIngestionPortal() {
@@ -50,6 +54,9 @@ export default function DataIngestionPortal() {
   const [labels, setLabels] = useState<string[]>([])
   const [newLabel, setNewLabel] = useState("")
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const [autoLabels, setAutoLabels] = useState<string[]>([])
+  const [isAnalyzing, setIsAnalyzing] = useState(false)
+  const [duplicateError, setDuplicateError] = useState<string | null>(null)
 
   // Check if user is admin
   const isAdmin = user?.emailAddresses[0]?.emailAddress === process.env.NEXT_PUBLIC_ADMIN_EMAIL
@@ -139,8 +146,15 @@ export default function DataIngestionPortal() {
         return
       }
 
+      // Load existing files for duplicate checking
+      const { data: existingFiles } = await supabase
+        .from("processed_data")
+        .select("*")
+        .order("created_at", { ascending: false })
+
       for (const file of Array.from(files)) {
         const processingId = Math.random().toString(36).substr(2, 9)
+        setDuplicateError(null)
 
         setProcessingFiles((prev) => [
           ...prev,
@@ -153,18 +167,9 @@ export default function DataIngestionPortal() {
         ])
 
         try {
-          // Step 1: Upload progress
+          // Step 1: Read file content first for duplicate checking
           setProcessingFiles((prev) =>
             prev.map((f) => (f.id === processingId ? { ...f, status: "uploading", progress: 25 } : f)),
-          )
-          await new Promise((resolve) => setTimeout(resolve, 500))
-
-          setProcessingFiles((prev) => prev.map((f) => (f.id === processingId ? { ...f, progress: 50 } : f)))
-          await new Promise((resolve) => setTimeout(resolve, 500))
-
-          // Step 2: Read file content
-          setProcessingFiles((prev) =>
-            prev.map((f) => (f.id === processingId ? { ...f, status: "processing", progress: 0 } : f)),
           )
 
           let content: string
@@ -186,19 +191,67 @@ export default function DataIngestionPortal() {
             throw new Error(`Failed to read file: ${error instanceof Error ? error.message : "Unknown error"}`)
           }
 
-          // Step 3: Process with AI
+          // Step 2: Check for duplicates
+          setProcessingFiles((prev) => prev.map((f) => (f.id === processingId ? { ...f, progress: 40 } : f)))
+
+          if (existingFiles && existingFiles.length > 0) {
+            const duplicateCheck = await customDuplicateCheck(file.name, content, existingFiles)
+
+            if (duplicateCheck.isDuplicate) {
+              setDuplicateError(
+                `Duplicate detected: ${duplicateCheck.reason || "File already exists"} (${duplicateCheck.existingFile})`,
+              )
+
+              setProcessingFiles((prev) =>
+                prev.map((f) =>
+                  f.id === processingId
+                    ? {
+                        ...f,
+                        status: "error",
+                        error: `Duplicate detected: ${duplicateCheck.existingFile}`,
+                      }
+                    : f,
+                ),
+              )
+
+              toast({
+                title: "Duplicate File Detected",
+                description: duplicateCheck.reason || "This file already exists in the database",
+                variant: "destructive",
+              })
+              continue
+            }
+          }
+
+          // Step 3: Auto-analyze document for labels
+          setProcessingFiles((prev) =>
+            prev.map((f) => (f.id === processingId ? { ...f, status: "processing", progress: 0 } : f)),
+          )
+
+          setIsAnalyzing(true)
+          const analysis = await analyzeDocument(file.name, content)
+          setAutoLabels(analysis.detectedLabels)
+          setIsAnalyzing(false)
+
+          // Combine manual labels with auto-detected ones
+          const combinedLabels = [...new Set([...labels, ...analysis.detectedLabels.slice(0, 5)])]
+
           setProcessingFiles((prev) => prev.map((f) => (f.id === processingId ? { ...f, progress: 50 } : f)))
 
+          // Step 4: Process with AI
           let processedData
           try {
             processedData = await processWithAI(content, file.name)
+            // Add quality score from analysis
+            processedData.qualityScore = analysis.qualityScore
+            processedData.documentType = analysis.documentType
           } catch (error) {
             throw new Error(`AI processing failed: ${error instanceof Error ? error.message : "Unknown error"}`)
           }
 
           setProcessingFiles((prev) => prev.map((f) => (f.id === processingId ? { ...f, progress: 75 } : f)))
 
-          // Step 4: Save to database with all columns now available
+          // Step 5: Save to database
           setProcessingFiles((prev) =>
             prev.map((f) => (f.id === processingId ? { ...f, status: "saving", progress: 90 } : f)),
           )
@@ -206,15 +259,16 @@ export default function DataIngestionPortal() {
           try {
             const insertData = {
               name: file.name,
-              type: "document",
+              type: analysis.documentType || "document",
               source: "file-upload",
               original_content: content,
               processed_content: JSON.stringify(processedData),
               extracted_data: processedData,
-              labels: labels,
+              labels: combinedLabels,
               status: "pending" as const,
               user_id: user.id,
               uploaded_by: user.emailAddresses[0]?.emailAddress || "unknown",
+              quality_score: analysis.qualityScore,
             }
 
             const { data, error } = await supabase.from("processed_data").insert(insertData).select()
@@ -224,7 +278,7 @@ export default function DataIngestionPortal() {
               throw new Error(`Database save failed: ${error.message}`)
             }
 
-            // Step 5: Complete
+            // Step 6: Complete
             setProcessingFiles((prev) =>
               prev.map((f) => (f.id === processingId ? { ...f, status: "complete", progress: 100 } : f)),
             )
@@ -237,7 +291,7 @@ export default function DataIngestionPortal() {
 
             toast({
               title: "File Processed Successfully",
-              description: `${file.name} has been processed and is pending approval`,
+              description: `${file.name} has been processed with ${combinedLabels.length} labels and is pending approval`,
             })
           } catch (dbError) {
             console.error("Database error:", dbError)
@@ -405,7 +459,7 @@ export default function DataIngestionPortal() {
 
         <main className="container mx-auto px-4 py-8">
           <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-            <TabsList className="grid w-full grid-cols-2 bg-slate-800/50 border border-slate-700">
+            <TabsList className="grid w-full grid-cols-3 bg-slate-800/50 border border-slate-700">
               <TabsTrigger value="upload" className="data-[state=active]:bg-blue-600 data-[state=active]:text-white">
                 <Upload className="h-4 w-4 mr-2" />
                 Upload Files
@@ -419,6 +473,10 @@ export default function DataIngestionPortal() {
                   </Badge>
                 )}
               </TabsTrigger>
+              <TabsTrigger value="quality" className="data-[state=active]:bg-blue-600 data-[state=active]:text-white">
+                <FileText className="h-4 w-4 mr-2" />
+                Data Quality
+              </TabsTrigger>
             </TabsList>
 
             <TabsContent value="upload" className="space-y-6">
@@ -431,34 +489,101 @@ export default function DataIngestionPortal() {
                     </CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-6">
-                    <div className="space-y-2">
-                      <Label className="text-slate-300">Document Labels</Label>
-                      <div className="flex space-x-2">
-                        <Input
-                          placeholder="Add label..."
-                          value={newLabel}
-                          onChange={(e) => setNewLabel(e.target.value)}
-                          onKeyPress={(e) => e.key === "Enter" && addLabel()}
-                          className="bg-slate-700 border-slate-600 text-white"
-                        />
-                        <Button onClick={addLabel} size="sm">
-                          Add
-                        </Button>
-                      </div>
-                      {labels.length > 0 && (
-                        <div className="flex flex-wrap gap-2">
-                          {labels.map((label) => (
-                            <Badge
-                              key={label}
-                              variant="secondary"
-                              className="cursor-pointer"
-                              onClick={() => removeLabel(label)}
-                            >
-                              {label} ×
-                            </Badge>
-                          ))}
+                    <div className="space-y-4">
+                      <div className="space-y-2">
+                        <Label className="text-slate-300">Document Labels</Label>
+
+                        {/* Manual label input */}
+                        <div className="flex space-x-2">
+                          <Input
+                            placeholder="Add custom label..."
+                            value={newLabel}
+                            onChange={(e) => setNewLabel(e.target.value)}
+                            onKeyPress={(e) => e.key === "Enter" && addLabel()}
+                            className="bg-slate-700 border-slate-600 text-white"
+                          />
+                          <Button onClick={addLabel} size="sm">
+                            Add
+                          </Button>
                         </div>
-                      )}
+
+                        {/* Auto-detected labels */}
+                        {autoLabels.length > 0 && (
+                          <div className="space-y-2">
+                            <div className="flex items-center space-x-2">
+                              <Badge variant="outline" className="text-xs text-blue-400 border-blue-400">
+                                AI Detected
+                              </Badge>
+                              {isAnalyzing && (
+                                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-500" />
+                              )}
+                            </div>
+                            <div className="flex flex-wrap gap-2">
+                              {autoLabels.map((label) => (
+                                <Badge
+                                  key={label}
+                                  variant="secondary"
+                                  className="cursor-pointer bg-blue-500/20 text-blue-300 hover:bg-blue-500/30"
+                                  onClick={() => {
+                                    if (!labels.includes(label)) {
+                                      setLabels((prev) => [...prev, label])
+                                    }
+                                  }}
+                                >
+                                  + {formatLabel(label)}
+                                </Badge>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Suggested veterinary labels */}
+                        <div className="space-y-2">
+                          <Label className="text-slate-400 text-sm">Veterinary Categories</Label>
+                          <div className="flex flex-wrap gap-1">
+                            {getVeterinaryLabels()
+                              .slice(0, 8)
+                              .map((label) => (
+                                <Badge
+                                  key={label}
+                                  variant="outline"
+                                  className="cursor-pointer text-xs hover:bg-slate-600"
+                                  onClick={() => {
+                                    if (!labels.includes(label)) {
+                                      setLabels((prev) => [...prev, label])
+                                    }
+                                  }}
+                                >
+                                  + {formatLabel(label)}
+                                </Badge>
+                              ))}
+                          </div>
+                        </div>
+
+                        {/* Current labels */}
+                        {labels.length > 0 && (
+                          <div className="flex flex-wrap gap-2">
+                            {labels.map((label) => (
+                              <Badge
+                                key={label}
+                                variant="secondary"
+                                className="cursor-pointer"
+                                onClick={() => removeLabel(label)}
+                              >
+                                {formatLabel(label)} ×
+                              </Badge>
+                            ))}
+                          </div>
+                        )}
+
+                        {/* Duplicate error display */}
+                        {duplicateError && (
+                          <div className="bg-red-900/20 border border-red-500/30 rounded p-3">
+                            <p className="text-red-400 text-sm font-medium">⚠️ Duplicate Detection</p>
+                            <p className="text-red-300 text-sm">{duplicateError}</p>
+                          </div>
+                        )}
+                      </div>
                     </div>
 
                     <div
@@ -747,6 +872,10 @@ export default function DataIngestionPortal() {
                   </Card>
                 </div>
               )}
+            </TabsContent>
+
+            <TabsContent value="quality" className="space-y-6">
+              <DataQualityMetrics />
             </TabsContent>
           </Tabs>
         </main>
