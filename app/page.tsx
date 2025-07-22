@@ -459,28 +459,34 @@ export default function DataIngestionPortal() {
 
         <main className="container mx-auto px-4 py-8">
           <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-            <TabsList className="grid w-full grid-cols-3 bg-slate-800/50 border border-slate-700">
+            <TabsList
+              className={`grid w-full ${isAdmin ? "grid-cols-3" : "grid-cols-1"} bg-slate-800/50 border border-slate-700`}
+            >
               <TabsTrigger value="upload" className="data-[state=active]:bg-blue-600 data-[state=active]:text-white">
                 <Upload className="h-4 w-4 mr-2" />
                 Upload Files
               </TabsTrigger>
-              <TabsTrigger value="review" className="data-[state=active]:bg-blue-600 data-[state=active]:text-white">
-                <Shield className="h-4 w-4 mr-2" />
-                Admin Review
-                {pendingFiles.length > 0 && (
-                  <Badge variant="secondary" className="ml-2 bg-yellow-500/20 text-yellow-400">
-                    {pendingFiles.length}
-                  </Badge>
-                )}
-              </TabsTrigger>
-              <TabsTrigger value="quality" className="data-[state=active]:bg-blue-600 data-[state=active]:text-white">
-                <FileText className="h-4 w-4 mr-2" />
-                Data Quality
-              </TabsTrigger>
+              {isAdmin && (
+                <TabsTrigger value="review" className="data-[state=active]:bg-blue-600 data-[state=active]:text-white">
+                  <Shield className="h-4 w-4 mr-2" />
+                  Admin Review
+                  {pendingFiles.length > 0 && (
+                    <Badge variant="secondary" className="ml-2 bg-yellow-500/20 text-yellow-400">
+                      {pendingFiles.length}
+                    </Badge>
+                  )}
+                </TabsTrigger>
+              )}
+              {isAdmin && (
+                <TabsTrigger value="quality" className="data-[state=active]:bg-blue-600 data-[state=active]:text-white">
+                  <FileText className="h-4 w-4 mr-2" />
+                  Data Quality
+                </TabsTrigger>
+              )}
             </TabsList>
 
             <TabsContent value="upload" className="space-y-6">
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <div className={`grid grid-cols-1 ${isAdmin ? "lg:grid-cols-2" : ""} gap-6`}>
                 <Card className="bg-slate-800/50 border-slate-700">
                   <CardHeader>
                     <CardTitle className="text-white">Upload Documents</CardTitle>
@@ -634,65 +640,76 @@ export default function DataIngestionPortal() {
                         ))}
                       </div>
                     )}
+                    {!isAdmin && (
+                      <div className="bg-blue-900/20 border border-blue-500/30 rounded p-3">
+                        <p className="text-blue-300 text-sm text-center">
+                          <strong>Files uploaded successfully!</strong>
+                          <br />
+                          Your documents have been submitted for admin review and will be processed shortly.
+                        </p>
+                      </div>
+                    )}
                   </CardContent>
                 </Card>
 
-                <Card className="bg-slate-800/50 border-slate-700">
-                  <CardHeader>
-                    <CardTitle className="text-white">File Status</CardTitle>
-                    <CardDescription className="text-slate-400">Overview of all processed files</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="grid grid-cols-3 gap-4 mb-6">
-                      <div className="text-center">
-                        <div className="text-2xl font-bold text-yellow-400">{pendingFiles.length}</div>
-                        <div className="text-sm text-slate-400">Pending</div>
+                {isAdmin && (
+                  <Card className="bg-slate-800/50 border-slate-700">
+                    <CardHeader>
+                      <CardTitle className="text-white">File Status</CardTitle>
+                      <CardDescription className="text-slate-400">Overview of all processed files</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="grid grid-cols-3 gap-4 mb-6">
+                        <div className="text-center">
+                          <div className="text-2xl font-bold text-yellow-400">{pendingFiles.length}</div>
+                          <div className="text-sm text-slate-400">Pending</div>
+                        </div>
+                        <div className="text-center">
+                          <div className="text-2xl font-bold text-green-400">{approvedFiles.length}</div>
+                          <div className="text-sm text-slate-400">Approved</div>
+                        </div>
+                        <div className="text-center">
+                          <div className="text-2xl font-bold text-red-400">{rejectedFiles.length}</div>
+                          <div className="text-sm text-slate-400">Rejected</div>
+                        </div>
                       </div>
-                      <div className="text-center">
-                        <div className="text-2xl font-bold text-green-400">{approvedFiles.length}</div>
-                        <div className="text-sm text-slate-400">Approved</div>
-                      </div>
-                      <div className="text-center">
-                        <div className="text-2xl font-bold text-red-400">{rejectedFiles.length}</div>
-                        <div className="text-sm text-slate-400">Rejected</div>
-                      </div>
-                    </div>
 
-                    <ScrollArea className="h-64">
-                      {databaseFiles.length > 0 ? (
-                        <div className="space-y-2">
-                          {databaseFiles.map((file) => (
-                            <div key={file.id} className="p-2 bg-slate-700/30 rounded border border-slate-600">
-                              <div className="flex items-center justify-between">
-                                <span className="text-white text-sm truncate max-w-[150px]">{file.name}</span>
-                                <Badge
-                                  variant={
-                                    file.status === "approved"
-                                      ? "default"
-                                      : file.status === "pending"
-                                        ? "secondary"
-                                        : "destructive"
-                                  }
-                                  className={file.status === "pending" ? "bg-yellow-500/20 text-yellow-400" : ""}
-                                >
-                                  {file.status}
-                                </Badge>
+                      <ScrollArea className="h-64">
+                        {databaseFiles.length > 0 ? (
+                          <div className="space-y-2">
+                            {databaseFiles.map((file) => (
+                              <div key={file.id} className="p-2 bg-slate-700/30 rounded border border-slate-600">
+                                <div className="flex items-center justify-between">
+                                  <span className="text-white text-sm truncate max-w-[150px]">{file.name}</span>
+                                  <Badge
+                                    variant={
+                                      file.status === "approved"
+                                        ? "default"
+                                        : file.status === "pending"
+                                          ? "secondary"
+                                          : "destructive"
+                                    }
+                                    className={file.status === "pending" ? "bg-yellow-500/20 text-yellow-400" : ""}
+                                  >
+                                    {file.status}
+                                  </Badge>
+                                </div>
+                                <p className="text-slate-400 text-xs mt-1">
+                                  {new Date(file.created_at).toLocaleDateString()}
+                                </p>
                               </div>
-                              <p className="text-slate-400 text-xs mt-1">
-                                {new Date(file.created_at).toLocaleDateString()}
-                              </p>
-                            </div>
-                          ))}
-                        </div>
-                      ) : (
-                        <div className="text-center py-8">
-                          <FileText className="h-12 w-12 text-slate-500 mx-auto mb-3" />
-                          <p className="text-slate-400">No files uploaded yet</p>
-                        </div>
-                      )}
-                    </ScrollArea>
-                  </CardContent>
-                </Card>
+                            ))}
+                          </div>
+                        ) : (
+                          <div className="text-center py-8">
+                            <FileText className="h-12 w-12 text-slate-500 mx-auto mb-3" />
+                            <p className="text-slate-400">No files uploaded yet</p>
+                          </div>
+                        )}
+                      </ScrollArea>
+                    </CardContent>
+                  </Card>
+                )}
               </div>
             </TabsContent>
 
