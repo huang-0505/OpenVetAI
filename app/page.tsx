@@ -105,6 +105,92 @@ export default function HomePage() {
     }
   }, [user, fetchDbFiles])
 
+  const createTestPendingFiles = useCallback(async () => {
+    if (!user || !isAdmin) return
+
+    const testFiles = [
+      {
+        name: "veterinary-case-study-001.pdf",
+        type: "case-study",
+        source: "file-upload",
+        original_content:
+          "This is a veterinary case study about a dog with hip dysplasia. The patient presented with lameness and difficulty walking. After examination and X-rays, the diagnosis was confirmed. Treatment options included surgery and physical therapy.",
+        processed_content: JSON.stringify({
+          title: "Veterinary Case Study: Hip Dysplasia in Dogs",
+          summary:
+            "A comprehensive case study documenting the diagnosis and treatment of hip dysplasia in a canine patient, including examination findings, diagnostic imaging, and treatment recommendations.",
+          keyPoints: [
+            "Patient presented with lameness and mobility issues",
+            "X-ray imaging confirmed hip dysplasia diagnosis",
+            "Treatment options include surgical and non-surgical approaches",
+            "Physical therapy plays important role in recovery",
+          ],
+        }),
+        extracted_data: {
+          title: "Veterinary Case Study: Hip Dysplasia in Dogs",
+          summary:
+            "A comprehensive case study documenting the diagnosis and treatment of hip dysplasia in a canine patient.",
+          keyPoints: [
+            "Patient presented with lameness and mobility issues",
+            "X-ray imaging confirmed hip dysplasia diagnosis",
+            "Treatment options include surgical and non-surgical approaches",
+            "Physical therapy plays important role in recovery",
+          ],
+        },
+        labels: ["veterinary", "case-study", "orthopedics"],
+        status: "pending",
+        user_id: user.id,
+        uploaded_by: user.emailAddresses[0]?.emailAddress || "admin",
+      },
+      {
+        name: "medication-guidelines-2024.docx",
+        type: "guidelines",
+        source: "file-upload",
+        original_content:
+          "Updated medication guidelines for veterinary practice 2024. This document outlines proper dosing, contraindications, and safety protocols for commonly prescribed veterinary medications.",
+        processed_content: JSON.stringify({
+          title: "Veterinary Medication Guidelines 2024",
+          summary:
+            "Comprehensive guidelines for veterinary medication administration, dosing, and safety protocols updated for 2024 practice standards.",
+          keyPoints: [
+            "Updated dosing recommendations for common medications",
+            "New safety protocols and contraindications",
+            "Drug interaction warnings and precautions",
+            "Emergency medication procedures",
+          ],
+        }),
+        extracted_data: {
+          title: "Veterinary Medication Guidelines 2024",
+          summary: "Comprehensive guidelines for veterinary medication administration, dosing, and safety protocols.",
+          keyPoints: [
+            "Updated dosing recommendations for common medications",
+            "New safety protocols and contraindications",
+            "Drug interaction warnings and precautions",
+            "Emergency medication procedures",
+          ],
+        },
+        labels: ["guidelines", "medication", "safety"],
+        status: "pending",
+        user_id: user.id,
+        uploaded_by: user.emailAddresses[0]?.emailAddress || "admin",
+      },
+    ]
+
+    try {
+      const { error } = await supabase.from("processed_data").insert(testFiles)
+
+      if (error) throw error
+
+      fetchDbFiles()
+      toast({
+        title: "Test files created",
+        description: "Added sample pending files for admin review",
+      })
+    } catch (error) {
+      console.error("Error creating test files:", error)
+    }
+  }, [user, isAdmin, fetchDbFiles, toast])
+
   // Enhanced AI processing with content-type specific prompts
   const processContentWithAI = async (content: string, filename: string) => {
     await new Promise((resolve) => setTimeout(resolve, 1500))
@@ -506,10 +592,19 @@ export default function HomePage() {
           )}
 
           <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-            <TabsList className="grid w-full grid-cols-4 bg-slate-800/50 border border-slate-700">
+            <TabsList className="grid w-full grid-cols-5 bg-slate-800/50 border border-slate-700">
               <TabsTrigger value="upload" className="data-[state=active]:bg-blue-600 data-[state=active]:text-white">
                 <Upload className="h-4 w-4 mr-2" />
                 Data Input
+              </TabsTrigger>
+              <TabsTrigger value="admin" className="data-[state=active]:bg-blue-600 data-[state=active]:text-white">
+                <Shield className="h-4 w-4 mr-2" />
+                Admin Review
+                {isAdmin && pendingFiles.length > 0 && (
+                  <Badge variant="secondary" className="ml-2 bg-yellow-500/20 text-yellow-400 border-yellow-500/30">
+                    {pendingFiles.length}
+                  </Badge>
+                )}
               </TabsTrigger>
               <TabsTrigger value="analytics" className="data-[state=active]:bg-blue-600 data-[state=active]:text-white">
                 <BarChart3 className="h-4 w-4 mr-2" />
@@ -872,6 +967,241 @@ export default function HomePage() {
                   </CardContent>
                 </Card>
               </div>
+            </TabsContent>
+
+            <TabsContent value="admin" className="space-y-6">
+              {!isAdmin ? (
+                <Card className="bg-slate-800/50 border-slate-700">
+                  <CardContent className="p-8 text-center">
+                    <Shield className="h-12 w-12 text-slate-500 mx-auto mb-3" />
+                    <p className="text-slate-400">Admin access required</p>
+                  </CardContent>
+                </Card>
+              ) : (
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 h-[calc(100vh-300px)]">
+                  {/* Left Panel - Pending Files */}
+                  <Card className="bg-slate-800/50 border-slate-700">
+                    <CardHeader>
+                      <CardTitle className="text-white flex items-center">
+                        <Shield className="h-5 w-5 mr-2 text-yellow-500" />
+                        Pending Approval ({pendingFiles.length})
+                      </CardTitle>
+                      {pendingFiles.length === 0 && (
+                        <div className="mb-4">
+                          <Button
+                            onClick={createTestPendingFiles}
+                            variant="outline"
+                            size="sm"
+                            className="border-blue-500/50 text-blue-400 hover:bg-blue-500/10 bg-transparent"
+                          >
+                            Create Test Pending Files
+                          </Button>
+                        </div>
+                      )}
+                      <CardDescription className="text-slate-400">
+                        Files waiting for admin review and approval
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <ScrollArea className="h-[calc(100vh-400px)]">
+                        {pendingFiles.length > 0 ? (
+                          <div className="space-y-2">
+                            {pendingFiles.map((file) => (
+                              <div
+                                key={file.id}
+                                className={`p-3 border rounded cursor-pointer transition-colors ${
+                                  selectedFile?.id === file.id
+                                    ? "border-yellow-500 bg-yellow-500/10"
+                                    : "border-slate-600 hover:border-slate-500 bg-slate-700/30"
+                                }`}
+                                onClick={() => setSelectedFile(file)}
+                              >
+                                <div className="flex items-center justify-between mb-2">
+                                  <div className="flex items-center space-x-2">
+                                    <FileText className="h-4 w-4 text-yellow-400" />
+                                    <span className="text-white text-sm font-medium truncate max-w-[200px]">
+                                      {file.name}
+                                    </span>
+                                  </div>
+                                  <Badge
+                                    variant="secondary"
+                                    className="bg-yellow-500/20 text-yellow-400 border-yellow-500/30"
+                                  >
+                                    Pending
+                                  </Badge>
+                                </div>
+                                <div className="flex items-center space-x-2 text-xs text-slate-400">
+                                  <span>Uploaded: {new Date(file.created_at).toLocaleDateString()}</span>
+                                  <span>•</span>
+                                  <span>By: {file.uploaded_by}</span>
+                                </div>
+                                {file.labels && file.labels.length > 0 && (
+                                  <div className="flex flex-wrap gap-1 mt-2">
+                                    {file.labels.map((label: string) => (
+                                      <Badge
+                                        key={label}
+                                        variant="outline"
+                                        className="text-xs border-slate-500 text-slate-300 px-1 py-0"
+                                      >
+                                        {label}
+                                      </Badge>
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <div className="text-center py-12">
+                            <CheckCircle className="h-12 w-12 text-green-500 mx-auto mb-3" />
+                            <p className="text-slate-400 text-sm">All files have been reviewed</p>
+                            <p className="text-xs text-slate-500 mt-1">No pending files require approval</p>
+                          </div>
+                        )}
+                      </ScrollArea>
+                    </CardContent>
+                  </Card>
+
+                  {/* Right Panel - File Review */}
+                  <Card className="bg-slate-800/50 border-slate-700">
+                    <CardHeader>
+                      <CardTitle className="text-white flex items-center">
+                        <FileText className="h-5 w-5 mr-2 text-blue-500" />
+                        File Review
+                      </CardTitle>
+                      <CardDescription className="text-slate-400">
+                        Review file content and approve or reject for training
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      {selectedFile && selectedFile.status === "pending" ? (
+                        <div className="space-y-4">
+                          <ScrollArea className="h-[calc(100vh-500px)]">
+                            <div className="space-y-4">
+                              {/* File Info */}
+                              <div className="bg-slate-700/30 p-3 rounded border border-slate-600">
+                                <div className="flex items-center justify-between mb-2">
+                                  <h3 className="text-white font-medium text-sm">{selectedFile.name}</h3>
+                                  <Badge
+                                    variant="secondary"
+                                    className="bg-yellow-500/20 text-yellow-400 border-yellow-500/30"
+                                  >
+                                    Pending Review
+                                  </Badge>
+                                </div>
+                                <div className="flex items-center space-x-2 text-xs text-slate-400">
+                                  <span>Type: {selectedFile.type?.replace("-", " ")}</span>
+                                  <span>•</span>
+                                  <span>Source: {selectedFile.source?.replace("-", " ")}</span>
+                                  <span>•</span>
+                                  <span>Uploaded: {new Date(selectedFile.created_at).toLocaleDateString()}</span>
+                                </div>
+                              </div>
+
+                              {/* AI Summary */}
+                              <div>
+                                <Label className="text-slate-300 text-xs font-medium">AI-Generated Summary</Label>
+                                <div className="mt-1 p-2 bg-slate-700/50 rounded border border-slate-600">
+                                  <p className="text-white text-sm leading-relaxed">
+                                    {selectedFile.extracted_data?.summary || "No summary available"}
+                                  </p>
+                                </div>
+                              </div>
+
+                              {/* Key Points */}
+                              <div>
+                                <Label className="text-slate-300 text-xs font-medium">Key Points</Label>
+                                <div className="mt-1 p-2 bg-slate-700/50 rounded border border-slate-600">
+                                  <ul className="space-y-1">
+                                    {selectedFile.extracted_data?.keyPoints?.map((point: string, index: number) => (
+                                      <li key={index} className="text-white text-sm flex items-start space-x-2">
+                                        <span className="text-blue-400 mt-1">•</span>
+                                        <span>{point}</span>
+                                      </li>
+                                    )) || <li className="text-slate-400 text-sm">No key points extracted</li>}
+                                  </ul>
+                                </div>
+                              </div>
+
+                              {/* Applied Labels */}
+                              <div>
+                                <Label className="text-slate-300 text-xs font-medium">Applied Labels</Label>
+                                <div className="mt-1 flex flex-wrap gap-1">
+                                  {selectedFile.labels?.map((label: string) => (
+                                    <Badge
+                                      key={label}
+                                      variant="secondary"
+                                      className="bg-blue-500/20 text-blue-400 border-blue-500/30 text-xs"
+                                    >
+                                      {label}
+                                    </Badge>
+                                  )) || <span className="text-slate-400 text-xs">No labels applied</span>}
+                                </div>
+                              </div>
+
+                              {/* Raw Content Preview */}
+                              <div>
+                                <Label className="text-slate-300 text-xs font-medium">Content Preview</Label>
+                                <div className="mt-1 p-2 bg-slate-700/50 rounded border border-slate-600 max-h-40 overflow-y-auto">
+                                  <pre className="text-white text-xs whitespace-pre-wrap font-mono leading-relaxed">
+                                    {selectedFile.original_content?.substring(0, 1000) || "No content available"}
+                                    {selectedFile.original_content?.length > 1000 && "..."}
+                                  </pre>
+                                </div>
+                              </div>
+                            </div>
+                          </ScrollArea>
+
+                          {/* Action Buttons */}
+                          <div className="border-t border-slate-600 pt-4">
+                            <div className="bg-yellow-900/20 border border-yellow-500/30 rounded p-3 mb-4">
+                              <div className="text-center mb-3">
+                                <h3 className="text-lg font-bold text-yellow-400 mb-1">⚠️ ADMIN DECISION REQUIRED</h3>
+                                <p className="text-yellow-300 text-sm">
+                                  Review the content above and decide whether to approve or reject this file for
+                                  training.
+                                </p>
+                              </div>
+                            </div>
+
+                            <div className="flex space-x-3">
+                              <Button
+                                onClick={() => approveFile(selectedFile.id)}
+                                size="lg"
+                                className="flex-1 bg-green-600 hover:bg-green-700 text-white font-semibold py-3"
+                              >
+                                ✅ APPROVE FOR TRAINING
+                              </Button>
+                              <Button
+                                onClick={() => rejectFile(selectedFile.id)}
+                                variant="destructive"
+                                size="lg"
+                                className="flex-1 font-semibold py-3"
+                              >
+                                ❌ REJECT FILE
+                              </Button>
+                            </div>
+                          </div>
+                        </div>
+                      ) : selectedFile && selectedFile.status !== "pending" ? (
+                        <div className="text-center py-12">
+                          <CheckCircle className="h-12 w-12 text-green-500 mx-auto mb-3" />
+                          <p className="text-slate-400 text-sm">This file has already been reviewed</p>
+                          <p className="text-xs text-slate-500 mt-1">Status: {selectedFile.status}</p>
+                        </div>
+                      ) : (
+                        <div className="text-center py-12">
+                          <Shield className="h-12 w-12 text-slate-500 mx-auto mb-3" />
+                          <p className="text-slate-400 text-sm">Select a pending file to review</p>
+                          <p className="text-xs text-slate-500 mt-1">
+                            Choose a file from the pending list to see its details and approve/reject it
+                          </p>
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                </div>
+              )}
             </TabsContent>
 
             <TabsContent value="analytics" className="space-y-6">
