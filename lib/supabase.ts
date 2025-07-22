@@ -15,8 +15,8 @@ export interface ProcessedData {
   extracted_data: any
   labels: string[]
   status: "pending" | "approved" | "rejected" | "ready"
-  user_id: string
-  uploaded_by: string
+  user_id?: string
+  uploaded_by?: string
   created_at: string
   updated_at: string
 }
