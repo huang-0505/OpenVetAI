@@ -222,16 +222,6 @@ For LLM‑powered steps (summarization, labeling, extraction), you can wire in t
 
 ---
 
-## Roadmap
-
-- Batch uploads and approvals
-- Real PDF/DOC parsing
-- Bulk export and quality reporting
-- Duplicate options (rename, skip, merge)
-- Training history and schedules
-- Fuzzy name matching tuning and threshold experiments
-
----
 
 ## Troubleshooting
 
