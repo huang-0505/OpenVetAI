@@ -1,6 +1,8 @@
 # Data Ingestion Portal
 
 A modern, role‑aware document ingestion system for AI training pipelines. Built with Next.js App Router, Supabase, Clerk, Tailwind, and shadcn/ui. It supports secure uploads, automated labeling, duplicate detection, an admin review workflow, and a comprehensive data quality dashboard (admin‑only).
+<img width="1301" height="692" alt="image" src="https://github.com/user-attachments/assets/a1e01daa-dbd6-4ced-80f2-0220e4038091" />
+
 
 ## Table of Contents
 
